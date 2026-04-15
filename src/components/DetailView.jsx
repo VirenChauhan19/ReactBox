@@ -14,7 +14,7 @@ const STATUS_COLOR = {
 
 async function callGemini(system, userContent) {
   const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
 
   const res = await fetch(url, {
     method: 'POST',
