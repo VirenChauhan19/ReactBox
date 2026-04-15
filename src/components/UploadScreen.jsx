@@ -28,37 +28,49 @@ async function extractPdfText(file) {
   return text
 }
 
-async function callGemini(userText) {
+async function callGemini(userText, retries = 2) {
   const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ parts: [{ text: userText }] }],
-    }),
-  })
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ parts: [{ text: userText }] }],
+      }),
+    })
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message ?? `API error ${res.status}`)
+    // Rate-limited — wait and retry
+    if (res.status === 429 && attempt < retries) {
+      const err = await res.json().catch(() => ({}))
+      const retryAfter = err?.error?.details?.find(d => d.retryDelay)?.retryDelay
+      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : (attempt + 1) * 8000
+      await new Promise(r => setTimeout(r, waitMs))
+      continue
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `API error ${res.status}`)
+    }
+
+    const data = await res.json()
+    const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '')
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim()
+    const assignments = JSON.parse(raw)
+    if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
+    return assignments
   }
 
-  const data = await res.json()
-  const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '')
-    .trim()
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim()
-  const assignments = JSON.parse(raw)
-  if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
-  return assignments
+  throw new Error('Rate limit exceeded — please wait a moment and try again.')
 }
 
-export default function UploadScreen({ onAssignmentsLoaded }) {
+export default function UploadScreen({ onAssignmentsLoaded, onClose }) {
   const [phase, setPhase] = useState('idle') // idle | reading | parsing | error
   const [error, setError] = useState('')
   const [fileName, setFileName] = useState('')
@@ -90,8 +102,21 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
   const isLoading = phase === 'reading' || phase === 'parsing'
 
   return (
-    <div style={s.page}>
-      <div style={s.card}>
+    // Backdrop — click outside card to close
+    <div
+      style={s.backdrop}
+      onClick={onClose}
+    >
+      {/* Stop clicks inside the card from bubbling to backdrop */}
+      <div style={s.card} onClick={(e) => e.stopPropagation()} className="animate-popIn">
+
+        {/* ── Close button ── */}
+        {onClose && (
+          <button style={s.closeBtn} onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        )}
+
         <div style={s.logoRow}>
           <span style={s.logoDot} />
           <span style={s.logoText}>Study Command Center</span>
@@ -104,10 +129,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
         </p>
 
         <label
-          style={{
-            ...s.dropzone,
-            ...(isLoading ? s.dropzoneLoading : {}),
-          }}
+          style={{ ...s.dropzone, ...(isLoading ? s.dropzoneLoading : {}) }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault()
@@ -152,7 +174,9 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
             <strong>Error:</strong> {error}
             <br />
             <span style={s.errorHint}>
-              Make sure VITE_GEMINI_API_KEY is set in your .env file.
+              {error.includes('quota') || error.includes('429') || error.includes('Rate limit')
+                ? 'Free tier rate limit hit — wait 15–30 seconds and try again.'
+                : 'Make sure VITE_GEMINI_API_KEY is set in your .env file.'}
             </span>
           </div>
         )}
@@ -162,22 +186,47 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
 }
 
 const s = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#0D1117',
+  backdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontFamily: "'Inter', 'system-ui', sans-serif",
     padding: '24px',
+    zIndex: 100,
+    animation: 'fadeIn .2s ease',
   },
   card: {
+    position: 'relative',
     backgroundColor: '#161B22',
     border: '1px solid #30363D',
-    borderRadius: '12px',
+    borderRadius: '14px',
     padding: '40px 44px',
     width: '100%',
     maxWidth: '480px',
+    boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
+  },
+  closeBtn: {
+    position: 'absolute',
+    top: '14px',
+    right: '14px',
+    backgroundColor: 'transparent',
+    border: '1px solid #30363D',
+    borderRadius: '6px',
+    color: '#8B949E',
+    fontSize: '0.85rem',
+    width: '28px',
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'color .15s, background-color .15s, border-color .15s',
+    lineHeight: 1,
+    padding: 0,
   },
   logoRow: {
     display: 'flex',

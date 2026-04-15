@@ -5,6 +5,7 @@ import Controller from './components/Controller.jsx'
 import UploadScreen from './components/UploadScreen.jsx'
 import CalendarView from './components/CalendarView.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
+import ChatBot from './components/ChatBot.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
 
 const INITIAL_STATE = {
@@ -96,11 +97,14 @@ export default function App({ googleEnabled = true }) {
     setScreen('upload')
   }
 
+  const [showUpload, setShowUpload] = useState(false)
+
   // ── Upload callback ───────────────────────────────────────────────────────────
   function handleAssignmentsLoaded(newAssignments) {
     setAssignments(newAssignments)
     setSelectedAssignment(newAssignments[0]?.id ?? '')
     setScreen('dashboard')
+    setShowUpload(false)
   }
 
   // ── Assignment mutations ──────────────────────────────────────────────────────
@@ -140,7 +144,12 @@ export default function App({ googleEnabled = true }) {
   }
 
   if (screen === 'upload') {
-    return <UploadScreen onAssignmentsLoaded={handleAssignmentsLoaded} />
+    return (
+      <UploadScreen
+        onAssignmentsLoaded={handleAssignmentsLoaded}
+        onClose={() => setScreen(assignments.length > 0 ? 'dashboard' : 'auth')}
+      />
+    )
   }
 
   const syncLabel = { idle: '', syncing: '⟳ Syncing…', synced: '✓ Synced', error: '⚠ Sync error' }[syncStatus]
@@ -176,7 +185,7 @@ export default function App({ googleEnabled = true }) {
           {syncStatus !== 'idle' && (
             <span style={{ ...styles.syncBadge, color: syncColor }}>{syncLabel}</span>
           )}
-          <button style={styles.uploadBtn} onClick={() => setScreen('upload')}>
+          <button style={styles.uploadBtn} onClick={() => setShowUpload(true)}>
             + Upload
           </button>
           {googleProfile && (
@@ -252,6 +261,20 @@ export default function App({ googleEnabled = true }) {
           </div>
         </div>
       )}
+
+      {/* ── Upload modal overlay ─────────────────────────────────── */}
+      {showUpload && (
+        <UploadScreen
+          onAssignmentsLoaded={handleAssignmentsLoaded}
+          onClose={() => setShowUpload(false)}
+        />
+      )}
+
+      {/* ── AI Chatbot ───────────────────────────────────────────── */}
+      <ChatBot
+        assignments={assignments}
+        userName={googleProfile?.name ?? null}
+      />
     </div>
   )
 }
