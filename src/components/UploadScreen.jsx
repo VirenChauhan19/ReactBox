@@ -28,20 +28,16 @@ async function extractPdfText(file) {
   return text
 }
 
-async function callClaude(userText) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function callGemini(userText) {
+  const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
+
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY ?? '',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userText }],
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ parts: [{ text: userText }] }],
     }),
   })
 
@@ -51,7 +47,7 @@ async function callClaude(userText) {
   }
 
   const data = await res.json()
-  const raw = (data.content?.[0]?.text ?? '').trim()
+  const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
   const assignments = JSON.parse(raw)
   if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
   return assignments
@@ -75,7 +71,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
       const text = await extractPdfText(file)
 
       setPhase('parsing')
-      const assignments = await callClaude(text)
+      const assignments = await callGemini(text)
 
       onAssignmentsLoaded(assignments)
     } catch (err) {
@@ -97,7 +93,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
 
         <h1 style={s.heading}>Upload Your Syllabus</h1>
         <p style={s.sub}>
-          Drop a PDF syllabus and Claude will extract all your assignments
+          Drop a PDF syllabus and Gemini will extract all your assignments
           automatically.
         </p>
 
@@ -129,7 +125,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
             <div style={s.loadingInner}>
               <div style={s.spinner} />
               <p style={s.loadingLabel}>
-                {phase === 'reading' ? 'Reading PDF…' : 'Parsing with Claude…'}
+                {phase === 'reading' ? 'Reading PDF…' : 'Parsing with Gemini…'}
               </p>
               {fileName && <p style={s.fileName}>{fileName}</p>}
             </div>
@@ -149,7 +145,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
             <strong>Error:</strong> {error}
             <br />
             <span style={s.errorHint}>
-              Make sure VITE_ANTHROPIC_API_KEY is set in your .env file.
+              Make sure VITE_GEMINI_API_KEY is set in your .env file.
             </span>
           </div>
         )}

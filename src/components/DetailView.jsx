@@ -12,20 +12,16 @@ const STATUS_COLOR = {
   completed: '#3FB950',
 }
 
-async function callClaude(system, userContent) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+async function callGemini(system, userContent) {
+  const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
+
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY ?? '',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2048,
-      system,
-      messages: [{ role: 'user', content: userContent }],
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ parts: [{ text: userContent }] }],
     }),
   })
 
@@ -35,7 +31,7 @@ async function callClaude(system, userContent) {
   }
 
   const data = await res.json()
-  return (data.content?.[0]?.text ?? '').trim()
+  return (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
 }
 
 function QuizView({ questions }) {
@@ -137,7 +133,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
     setNotesLoading(true)
     setNotesError('')
     try {
-      const result = await callClaude(
+      const result = await callGemini(
         'You are a study assistant. Generate clear, structured study notes for the given assignment. Use headers, bullet points, and concise language. Return plain text — no JSON.',
         `Course: ${course}\nAssignment: ${title}\nDescription: ${description}`
       )
@@ -153,7 +149,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
     setQuizLoading(true)
     setQuizError('')
     try {
-      const raw = await callClaude(
+      const raw = await callGemini(
         `You are a study assistant. Generate exactly 5 multiple choice questions for the given assignment.
 Return ONLY a valid JSON array, no markdown, no explanation:
 [{"question":"...","choices":["A text","B text","C text","D text"],"correct":0}]

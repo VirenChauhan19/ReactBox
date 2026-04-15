@@ -33,19 +33,19 @@ jobs:
 
       - name: Verify API key is set
         run: |
-          if [ -z "$VITE_ANTHROPIC_API_KEY" ]; then
-            echo "::error::VITE_ANTHROPIC_API_KEY secret is not set. Add it in Settings → Secrets and variables → Actions."
+          if [ -z "$VITE_GEMINI_API_KEY" ]; then
+            echo "::error::VITE_GEMINI_API_KEY secret is not set. Add it in Settings → Secrets and variables → Actions."
             exit 1
           else
-            echo "API key is present (${#VITE_ANTHROPIC_API_KEY} chars)"
+            echo "API key is present (${#VITE_GEMINI_API_KEY} chars)"
           fi
         env:
-          VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       - name: Build
         run: npm run build
         env:
-          VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
