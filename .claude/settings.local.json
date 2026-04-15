@@ -6,7 +6,11 @@
       "Bash(npm install:*)",
       "Bash(npm pkg:*)",
       "Bash(node -e \"console.log\\(require\\('./node_modules/pdfjs-dist/package.json'\\).version\\)\")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(curl -s https://api.github.com/repos/actions/checkout/releases/latest)",
+      "Bash(curl -s https://api.github.com/repos/actions/setup-node/releases/latest)",
+      "Bash(curl -s https://api.github.com/repos/actions/upload-pages-artifact/releases/latest)",
+      "Bash(curl -s https://api.github.com/repos/actions/deploy-pages/releases/latest)"
     ]
   }
 }
