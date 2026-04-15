@@ -31,12 +31,7 @@ async function extractPdfText(file) {
 async function callGemini(userText) {
   const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
 
-  // Debug: list available models
-  const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`)
-  const listData = await listRes.json()
-  console.log('Available models:', JSON.stringify(listData?.models?.map(m => m.name), null, 2))
-
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${key}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`
 
   const res = await fetch(url, {
     method: 'POST',
@@ -49,8 +44,7 @@ async function callGemini(userText) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    console.error('Gemini API error:', res.status, JSON.stringify(err))
-    throw new Error(`[${res.status}] ${err?.error?.message ?? `API error ${res.status}`}`)
+    throw new Error(err?.error?.message ?? `API error ${res.status}`)
   }
 
   const data = await res.json()
