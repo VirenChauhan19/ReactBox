@@ -1,167 +1,276 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 const DAYS   = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-]
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December']
 
-const URGENCY_COLOR = {
-  high:   '#F85149',
-  medium: '#E3B341',
-  low:    '#3FB950',
+const URGENCY_COLOR = { high: '#F85149', medium: '#E3B341', low: '#3FB950' }
+
+function buildCells(year, month) {
+  const firstDay     = new Date(year, month, 1).getDay()
+  const daysInMonth  = new Date(year, month + 1, 0).getDate()
+  const daysInPrevMo = new Date(year, month, 0).getDate()
+  const cells = []
+
+  for (let i = firstDay - 1; i >= 0; i--)
+    cells.push({ day: daysInPrevMo - i, current: false, dateStr: null })
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    cells.push({ day: d, current: true, dateStr })
+  }
+
+  let nextDay = 1
+  while (cells.length < 42)
+    cells.push({ day: nextDay++, current: false, dateStr: null })
+
+  return cells
 }
 
 export default function CalendarView({ assignments, selectedAssignment, onSelect }) {
   const today    = new Date()
-  const [viewDate, setViewDate] = useState(
-    new Date(today.getFullYear(), today.getMonth(), 1)
-  )
+  const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [dir,     setDir]      = useState(null) // 'left' | 'right'
+  const [animKey, setAnimKey]  = useState(0)
 
   const year  = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
-  const firstDay      = new Date(year, month, 1).getDay()
-  const daysInMonth   = new Date(year, month + 1, 0).getDate()
-  const daysInPrevMo  = new Date(year, month, 0).getDate()
+  const todayStr = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-')
 
-  // index assignments by dueDate string
+  function changeMonth(delta) {
+    setDir(delta > 0 ? 'left' : 'right')
+    setAnimKey((k) => k + 1)
+    setViewDate(new Date(year, month + delta, 1))
+  }
+
   const byDate = {}
   assignments.forEach((a) => {
     if (!byDate[a.dueDate]) byDate[a.dueDate] = []
     byDate[a.dueDate].push(a)
   })
 
-  // build 42-cell grid
-  const cells = []
-  for (let i = firstDay - 1; i >= 0; i--)
-    cells.push({ day: daysInPrevMo - i, current: false, dateStr: null })
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
-    cells.push({ day: d, current: true, dateStr })
-  }
-  while (cells.length < 42)
-    cells.push({ day: cells.length - daysInMonth - firstDay + 1, current: false, dateStr: null })
-
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`
+  const cells = buildCells(year, month)
 
   return (
-    <div style={s.wrap}>
-      {/* Month nav */}
-      <div style={s.header}>
-        <button style={s.navBtn} onClick={() => setViewDate(new Date(year, month - 1, 1))}>←</button>
-        <span style={s.monthTitle}>{MONTHS[month]} {year}</span>
-        <button style={s.navBtn} onClick={() => setViewDate(new Date(year, month + 1, 1))}>→</button>
+    <>
+      <style>{CSS}</style>
+      <div style={s.wrap}>
+
+        {/* ── Header ────────────────────────────────────────── */}
+        <div style={s.header}>
+          <NavBtn onClick={() => changeMonth(-1)}>←</NavBtn>
+          <div style={s.monthWrap}>
+            <span style={s.monthTitle}>{MONTHS[month]}</span>
+            <span style={s.yearLabel}>{year}</span>
+          </div>
+          <NavBtn onClick={() => changeMonth(1)}>→</NavBtn>
+        </div>
+
+        {/* ── Legend ────────────────────────────────────────── */}
+        <div style={s.legend}>
+          {Object.entries(URGENCY_COLOR).map(([k, c]) => (
+            <span key={k} style={s.legendItem}>
+              <span style={{ ...s.legendDot, backgroundColor: c, boxShadow: `0 0 4px ${c}` }} />
+              <span style={s.legendTxt}>{k.charAt(0).toUpperCase() + k.slice(1)}</span>
+            </span>
+          ))}
+          <span style={s.legendItem}>
+            <span style={{ ...s.legendDot, backgroundColor: '#F8514966', border: '1px solid #F85149' }} />
+            <span style={s.legendTxt}>Overdue</span>
+          </span>
+        </div>
+
+        {/* ── Grid ──────────────────────────────────────────── */}
+        <div style={s.dayLabels}>
+          {DAYS.map((d) => <div key={d} style={s.dayLabel}>{d}</div>)}
+        </div>
+
+        <div
+          key={animKey}
+          style={{
+            ...s.grid,
+            animation: dir === 'left'
+              ? 'calSlideLeft .35s cubic-bezier(.16,1,.3,1) both'
+              : dir === 'right'
+              ? 'calSlideRight .35s cubic-bezier(.16,1,.3,1) both'
+              : 'none',
+          }}
+        >
+          {cells.map((cell, i) => (
+            <CalCell
+              key={i}
+              cell={cell}
+              asgns={cell.dateStr ? (byDate[cell.dateStr] ?? []) : []}
+              isToday={cell.dateStr === todayStr}
+              isPast={cell.dateStr ? cell.dateStr < todayStr : false}
+              selectedAssignment={selectedAssignment}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
       </div>
+    </>
+  )
+}
 
-      {/* Legend */}
-      <div style={s.legend}>
-        {Object.entries(URGENCY_COLOR).map(([k, c]) => (
-          <span key={k} style={{ ...s.legendDot, backgroundColor: c }} />
-        ))}
-        <span style={s.legendText}>High / Medium / Low urgency</span>
-      </div>
+function CalCell({ cell, asgns, isToday, isPast, selectedAssignment, onSelect }) {
+  const [hov, setHov] = useState(false)
 
-      {/* Grid */}
-      <div style={s.grid}>
-        {DAYS.map((d) => (
-          <div key={d} style={s.dayLabel}>{d}</div>
-        ))}
+  const hasOverdue = isPast && asgns.some((a) => a.status !== 'completed')
+  const hasAsgns   = asgns.length > 0
 
-        {cells.map((cell, i) => {
-          const asgns   = cell.dateStr ? (byDate[cell.dateStr] ?? []) : []
-          const isToday = cell.dateStr === todayStr
+  return (
+    <div
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        ...s.cell,
+        opacity:         cell.current ? 1 : 0.25,
+        backgroundColor: isToday   ? '#1C2A3A'
+                       : hasOverdue ? '#1A0D0D'
+                       : hov && hasAsgns ? '#1C2128'
+                       : '#161B22',
+        border: isToday    ? '1px solid #58A6FF'
+              : hasOverdue ? '1px solid #F8514944'
+              : hov && hasAsgns ? '1px solid #484F58'
+              : '1px solid #21262D',
+        boxShadow: isToday ? '0 0 0 2px #58A6FF33' : 'none',
+        transition: 'background-color .15s, border-color .15s, box-shadow .15s',
+      }}
+    >
+      <span
+        style={{
+          ...s.dayNum,
+          color:      isToday ? '#58A6FF' : hasOverdue ? '#F85149' : cell.current ? '#E6EDF3' : '#484F58',
+          fontWeight: isToday || hasOverdue ? 700 : 400,
+        }}
+      >
+        {cell.day}
+        {hasOverdue && <span style={s.warnDot} title="Overdue">●</span>}
+      </span>
 
+      <div style={s.chips}>
+        {asgns.slice(0, 3).map((a) => {
+          const c      = URGENCY_COLOR[a.urgency] ?? '#8B949E'
+          const isSel  = a.id === selectedAssignment
           return (
             <div
-              key={i}
+              key={a.id}
+              title={a.title}
+              onClick={(e) => { e.stopPropagation(); cell.current && onSelect(a.id) }}
               style={{
-                ...s.cell,
-                opacity:         cell.current ? 1 : 0.3,
-                backgroundColor: isToday ? '#1C2A3A' : '#161B22',
-                border:          isToday ? '1px solid #58A6FF' : '1px solid #21262D',
+                ...s.chip,
+                backgroundColor: a.status === 'completed' ? '#21262D' : c + '22',
+                color:           a.status === 'completed' ? '#8B949E' : c,
+                border:          isSel ? `1px solid ${c}` : `1px solid ${c}44`,
+                boxShadow:       isSel ? `0 0 6px ${c}66` : 'none',
+                textDecoration:  a.status === 'completed' ? 'line-through' : 'none',
+                opacity:         a.status === 'completed' ? 0.5 : 1,
+                transform:       isSel ? 'scale(1.03)' : 'none',
+                transition:      'transform .15s, box-shadow .15s',
               }}
             >
-              <span style={{
-                ...s.dayNum,
-                color:      isToday ? '#58A6FF' : '#E6EDF3',
-                fontWeight: isToday ? 700 : 400,
-              }}>
-                {cell.day}
-              </span>
-
-              <div style={s.chips}>
-                {asgns.slice(0, 3).map((a) => {
-                  const c       = URGENCY_COLOR[a.urgency] ?? '#8B949E'
-                  const isSelec = a.id === selectedAssignment
-                  return (
-                    <div
-                      key={a.id}
-                      title={a.title}
-                      onClick={() => cell.current && onSelect(a.id)}
-                      style={{
-                        ...s.chip,
-                        backgroundColor: c + '22',
-                        color:           c,
-                        border:          isSelec ? `1px solid ${c}` : `1px solid ${c}44`,
-                        boxShadow:       isSelec ? `0 0 0 1px ${c}` : 'none',
-                        opacity:         a.status === 'completed' ? 0.45 : 1,
-                        textDecoration:  a.status === 'completed' ? 'line-through' : 'none',
-                      }}
-                    >
-                      {a.title.length > 13 ? a.title.slice(0, 12) + '…' : a.title}
-                    </div>
-                  )
-                })}
-                {asgns.length > 3 && (
-                  <span style={s.more}>+{asgns.length - 3} more</span>
-                )}
-              </div>
+              {a.title.length > 13 ? a.title.slice(0, 12) + '…' : a.title}
             </div>
           )
         })}
+        {asgns.length > 3 && (
+          <span style={s.more}>+{asgns.length - 3} more</span>
+        )}
       </div>
     </div>
   )
 }
 
+function NavBtn({ children, onClick }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        ...s.navBtn,
+        backgroundColor: hov ? '#21262D' : '#161B22',
+        transform:       hov ? 'scale(1.08)' : 'scale(1)',
+        boxShadow:       hov ? '0 0 12px rgba(88,166,255,.2)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+const CSS = `
+  @keyframes calSlideLeft {
+    from { opacity:0; transform: translateX(30px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+  @keyframes calSlideRight {
+    from { opacity:0; transform: translateX(-30px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+`
+
 const s = {
   wrap: {
     backgroundColor: '#0D1117',
     minHeight: '100vh',
-    padding: '28px 20px',
-    fontFamily: "'Inter', 'system-ui', sans-serif",
+    padding: '24px 18px',
+    fontFamily: "'Inter', system-ui, sans-serif",
     color: '#E6EDF3',
     overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: '12px',
   },
   navBtn: {
-    backgroundColor: '#161B22',
     border: '1px solid #30363D',
-    borderRadius: '6px',
+    borderRadius: '8px',
     color: '#E6EDF3',
-    padding: '6px 16px',
+    padding: '7px 18px',
     fontSize: '1rem',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    transition: 'background-color 0.15s',
+    transition: 'background-color .15s, transform .15s, box-shadow .15s',
+  },
+  monthWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '1px',
   },
   monthTitle: {
-    fontSize: '1.15rem',
-    fontWeight: 700,
+    fontSize: '1.2rem',
+    fontWeight: 800,
     color: '#E6EDF3',
-    letterSpacing: '0.02em',
+    letterSpacing: '0.01em',
+  },
+  yearLabel: {
+    fontSize: '0.72rem',
+    color: '#8B949E',
+    fontWeight: 500,
   },
   legend: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    marginBottom: '16px',
+    gap: '14px',
+    flexWrap: 'wrap',
+  },
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
   },
   legendDot: {
     display: 'inline-block',
@@ -169,34 +278,46 @@ const s = {
     height: '8px',
     borderRadius: '50%',
   },
-  legendText: {
-    fontSize: '0.72rem',
+  legendTxt: {
+    fontSize: '0.7rem',
     color: '#8B949E',
+  },
+  dayLabels: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(7, 1fr)',
+    gap: '4px',
+  },
+  dayLabel: {
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    color: '#8B949E',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    textAlign: 'center',
+    padding: '4px 0',
   },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
     gap: '4px',
   },
-  dayLabel: {
-    fontSize: '0.68rem',
-    fontWeight: 700,
-    color: '#8B949E',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    textAlign: 'center',
-    padding: '6px 0',
-  },
   cell: {
-    borderRadius: '6px',
-    padding: '6px 7px 8px',
-    minHeight: '82px',
+    borderRadius: '8px',
+    padding: '6px 6px 8px',
+    minHeight: '80px',
     cursor: 'default',
   },
   dayNum: {
-    fontSize: '0.78rem',
-    display: 'block',
+    fontSize: '0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
     marginBottom: '5px',
+  },
+  warnDot: {
+    fontSize: '0.4rem',
+    color: '#F85149',
+    lineHeight: 1,
   },
   chips: {
     display: 'flex',
@@ -204,7 +325,7 @@ const s = {
     gap: '3px',
   },
   chip: {
-    fontSize: '0.62rem',
+    fontSize: '0.6rem',
     fontWeight: 500,
     padding: '2px 5px',
     borderRadius: '4px',
@@ -212,10 +333,9 @@ const s = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    transition: 'box-shadow 0.1s',
   },
   more: {
-    fontSize: '0.6rem',
+    fontSize: '0.58rem',
     color: '#8B949E',
     paddingLeft: '3px',
   },

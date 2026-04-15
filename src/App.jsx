@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Browser from './components/Browser.jsx'
 import DetailView from './components/DetailView.jsx'
 import Controller from './components/Controller.jsx'
 import UploadScreen from './components/UploadScreen.jsx'
 import CalendarView from './components/CalendarView.jsx'
+import AuthScreen from './components/AuthScreen.jsx'
+import { syncAllAssignments } from './utils/googleCalendar.js'
 
 const INITIAL_STATE = {
   selectedAssignment: 'asgn-01',
@@ -51,106 +53,140 @@ const INITIAL_STATE = {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('upload') // 'upload' | 'dashboard'
-  const [view, setView]     = useState('dashboard') // 'dashboard' | 'calendar'
+  const [screen, setScreen] = useState('auth')     // 'auth' | 'upload' | 'dashboard'
+  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar'
 
-  const [selectedAssignment, setSelectedAssignment] = useState(
-    INITIAL_STATE.selectedAssignment
-  )
-  const [assignments, setAssignments] = useState(INITIAL_STATE.assignments)
-  const [filterCourse, setFilterCourse] = useState(INITIAL_STATE.filterCourse)
-  const [filterStatus, setFilterStatus] = useState(INITIAL_STATE.filterStatus)
-  const [sortBy, setSortBy] = useState(INITIAL_STATE.sortBy)
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  const [googleToken,  setGoogleToken]  = useState(null)
+  const [googleProfile, setGoogleProfile] = useState(null)
+  const [calEventIds,  setCalEventIds]  = useState({}) // { assignmentId -> gcal eventId }
+  const [syncStatus,   setSyncStatus]   = useState('idle') // 'idle' | 'syncing' | 'synced' | 'error'
 
-  console.log('Study Command Center — App State:', {
-    screen,
-    selectedAssignment,
-    assignments,
-    filterCourse,
-    filterStatus,
-    sortBy,
-  })
+  // ── Assignments ───────────────────────────────────────────────────────────────
+  const [selectedAssignment, setSelectedAssignment] = useState(INITIAL_STATE.selectedAssignment)
+  const [assignments,        setAssignments]        = useState(INITIAL_STATE.assignments)
+  const [filterCourse,       setFilterCourse]       = useState(INITIAL_STATE.filterCourse)
+  const [filterStatus,       setFilterStatus]       = useState(INITIAL_STATE.filterStatus)
+  const [sortBy,             setSortBy]             = useState(INITIAL_STATE.sortBy)
 
-  // ── Upload screen ────────────────────────────────────────────────────────────
+  // ── Sync to Google Calendar whenever assignments change ───────────────────────
+  const syncTimeout = useRef(null)
 
+  useEffect(() => {
+    if (!googleToken || assignments.length === 0) return
+    // debounce — wait 1.5s after last change before syncing
+    clearTimeout(syncTimeout.current)
+    syncTimeout.current = setTimeout(async () => {
+      setSyncStatus('syncing')
+      try {
+        await syncAllAssignments(googleToken, assignments, calEventIds, setCalEventIds)
+        setSyncStatus('synced')
+        setTimeout(() => setSyncStatus('idle'), 3000)
+      } catch {
+        setSyncStatus('error')
+      }
+    }, 1500)
+    return () => clearTimeout(syncTimeout.current)
+  }, [assignments, googleToken])
+
+  // ── Auth callback ─────────────────────────────────────────────────────────────
+  function handleAuth(token, profile) {
+    setGoogleToken(token)
+    setGoogleProfile(profile)
+    setScreen('upload')
+  }
+
+  // ── Upload callback ───────────────────────────────────────────────────────────
   function handleAssignmentsLoaded(newAssignments) {
     setAssignments(newAssignments)
     setSelectedAssignment(newAssignments[0]?.id ?? '')
     setScreen('dashboard')
   }
 
-  // ── Controller callbacks ─────────────────────────────────────────────────────
-
+  // ── Assignment mutations ──────────────────────────────────────────────────────
   function handleMarkComplete(id) {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: 'completed' } : a))
-    )
+    setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'completed' } : a)))
   }
 
-  // ── DetailView callbacks ─────────────────────────────────────────────────────
-
   function handleNotesGenerated(id, notes) {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, notes } : a))
-    )
+    setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, notes } : a)))
   }
 
   function handleQuizGenerated(id, quiz) {
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, quiz } : a))
-    )
+    setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, quiz } : a)))
   }
 
-  // ── Derived state ────────────────────────────────────────────────────────────
-
-  const selectedAssignmentObj =
-    assignments.find((a) => a.id === selectedAssignment) ?? null
+  // ── Derived state ─────────────────────────────────────────────────────────────
+  const selectedAssignmentObj = assignments.find((a) => a.id === selectedAssignment) ?? null
 
   const visibleAssignments = assignments
     .filter((a) => filterCourse === 'all' || a.course === filterCourse)
     .filter((a) => filterStatus === 'all' || a.status === filterStatus)
     .sort((a, b) => {
       if (sortBy === 'dueDate') return a.dueDate.localeCompare(b.dueDate)
-      if (sortBy === 'weight') return b.weight - a.weight
+      if (sortBy === 'weight')  return b.weight - a.weight
       return 0
     })
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Screens ───────────────────────────────────────────────────────────────────
+  if (screen === 'auth') {
+    return <AuthScreen onAuth={handleAuth} />
+  }
 
   if (screen === 'upload') {
     return <UploadScreen onAssignmentsLoaded={handleAssignmentsLoaded} />
   }
 
+  const syncLabel = { idle: '', syncing: '⟳ Syncing…', synced: '✓ Synced', error: '⚠ Sync error' }[syncStatus]
+  const syncColor = { idle: 'transparent', syncing: '#8B949E', synced: '#3FB950', error: '#F85149' }[syncStatus]
+
   return (
     <div style={styles.root}>
-      {/* ── Top nav bar ─────────────────────────────────────────────── */}
+      {/* ── Top nav bar ──────────────────────────────────────────────── */}
       <div style={styles.topBar}>
         <div style={styles.brand}>
           <span style={styles.brandDot} />
           <span style={styles.brandText}>Study Command Center</span>
         </div>
+
         <div style={styles.tabs}>
-          {['dashboard', 'calendar'].map((v) => (
+          {[{ id: 'dashboard', label: '⊞ Dashboard' }, { id: 'calendar', label: '📅 Calendar' }].map(({ id, label }) => (
             <button
-              key={v}
-              onClick={() => setView(v)}
+              key={id}
+              onClick={() => setView(id)}
               style={{
                 ...styles.tab,
-                ...(view === v ? styles.tabActive : {}),
+                color:           view === id ? '#E6EDF3' : '#8B949E',
+                borderBottom:    view === id ? '2px solid #58A6FF' : '2px solid transparent',
+                backgroundColor: view === id ? '#21262D' : 'transparent',
               }}
             >
-              {v === 'dashboard' ? '⊞ Dashboard' : '📅 Calendar'}
+              {label}
             </button>
           ))}
         </div>
-        <button style={styles.uploadBtn} onClick={() => setScreen('upload')}>
-          + Upload
-        </button>
+
+        <div style={styles.rightGroup}>
+          {syncStatus !== 'idle' && (
+            <span style={{ ...styles.syncBadge, color: syncColor }}>{syncLabel}</span>
+          )}
+          <button style={styles.uploadBtn} onClick={() => setScreen('upload')}>
+            + Upload
+          </button>
+          {googleProfile && (
+            <img
+              src={googleProfile.picture}
+              alt={googleProfile.name}
+              title={googleProfile.name}
+              style={styles.avatar}
+            />
+          )}
+        </div>
       </div>
 
-      {/* ── Views ───────────────────────────────────────────────────── */}
+      {/* ── Views ────────────────────────────────────────────────────── */}
       {view === 'dashboard' ? (
-        <div style={styles.layout}>
+        <div key="dashboard" style={styles.layout} className="animate-fadeIn">
           <div style={styles.panel}>
             <Browser
               assignments={visibleAssignments}
@@ -158,7 +194,6 @@ export default function App() {
               onSelect={setSelectedAssignment}
             />
           </div>
-
           <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
             <DetailView
               selectedAssignment={selectedAssignmentObj}
@@ -166,7 +201,6 @@ export default function App() {
               onQuizGenerated={handleQuizGenerated}
             />
           </div>
-
           <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
             <Controller
               assignments={assignments}
@@ -182,7 +216,7 @@ export default function App() {
           </div>
         </div>
       ) : (
-        <div style={styles.calLayout}>
+        <div key="calendar" style={styles.calLayout} className="animate-fadeIn">
           <div style={{ flex: 1, minWidth: 0 }}>
             <CalendarView
               assignments={visibleAssignments}
@@ -259,20 +293,26 @@ const styles = {
   },
   tab: {
     backgroundColor: 'transparent',
-    border: '1px solid transparent',
-    borderRadius: '6px',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    borderRadius: '6px 6px 0 0',
     color: '#8B949E',
-    padding: '5px 14px',
-    fontSize: '0.83rem',
-    fontWeight: 500,
+    padding: '6px 16px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
     cursor: 'pointer',
     fontFamily: "'Inter', 'system-ui', sans-serif",
-    transition: 'color 0.15s, border-color 0.15s',
+    transition: 'color 0.15s, background-color 0.15s, border-color 0.15s',
+    marginBottom: '-1px',
   },
-  tabActive: {
-    color: '#E6EDF3',
-    backgroundColor: '#0D1117',
-    border: '1px solid #30363D',
+  rightGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  syncBadge: {
+    fontSize: '0.75rem',
+    fontWeight: 500,
   },
   uploadBtn: {
     backgroundColor: '#238636',
@@ -285,7 +325,13 @@ const styles = {
     cursor: 'pointer',
     fontFamily: "'Inter', 'system-ui', sans-serif",
   },
-  // ── Dashboard layout ──────────────────────────────────────────────
+  avatar: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: '2px solid #30363D',
+    objectFit: 'cover',
+  },
   layout: {
     display: 'grid',
     gridTemplateColumns: '280px 1fr 220px',
@@ -295,7 +341,6 @@ const styles = {
   panel: {
     borderRight: '1px solid #21262D',
   },
-  // ── Calendar layout ───────────────────────────────────────────────
   calLayout: {
     display: 'flex',
     flex: 1,
