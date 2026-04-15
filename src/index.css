@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #0D1117;
+  color: #E6EDF3;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes urgentPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(248, 81, 73, 0.2), 0 0 10px rgba(248, 81, 73, 0.1); }
+  50%       { box-shadow: 0 0 0 4px rgba(248, 81, 73, 0.35), 0 0 20px rgba(248, 81, 73, 0.2); }
+}
+
+select option {
+  background-color: #161B22;
+  color: #E6EDF3;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0D1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363D;
+  border-radius: 3px;
+}
