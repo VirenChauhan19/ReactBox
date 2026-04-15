@@ -3,6 +3,7 @@ import Browser from './components/Browser.jsx'
 import DetailView from './components/DetailView.jsx'
 import Controller from './components/Controller.jsx'
 import UploadScreen from './components/UploadScreen.jsx'
+import CalendarView from './components/CalendarView.jsx'
 
 const INITIAL_STATE = {
   selectedAssignment: 'asgn-01',
@@ -51,6 +52,7 @@ const INITIAL_STATE = {
 
 export default function App() {
   const [screen, setScreen] = useState('upload') // 'upload' | 'dashboard'
+  const [view, setView]     = useState('dashboard') // 'dashboard' | 'calendar'
 
   const [selectedAssignment, setSelectedAssignment] = useState(
     INITIAL_STATE.selectedAssignment
@@ -120,48 +122,191 @@ export default function App() {
   }
 
   return (
-    <div style={styles.layout}>
-      <div style={styles.panel}>
-        <Browser
-          assignments={visibleAssignments}
-          selectedAssignment={selectedAssignment}
-          onSelect={setSelectedAssignment}
-        />
+    <div style={styles.root}>
+      {/* ── Top nav bar ─────────────────────────────────────────────── */}
+      <div style={styles.topBar}>
+        <div style={styles.brand}>
+          <span style={styles.brandDot} />
+          <span style={styles.brandText}>Study Command Center</span>
+        </div>
+        <div style={styles.tabs}>
+          {['dashboard', 'calendar'].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                ...styles.tab,
+                ...(view === v ? styles.tabActive : {}),
+              }}
+            >
+              {v === 'dashboard' ? '⊞ Dashboard' : '📅 Calendar'}
+            </button>
+          ))}
+        </div>
+        <button style={styles.uploadBtn} onClick={() => setScreen('upload')}>
+          + Upload
+        </button>
       </div>
 
-      <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
-        <DetailView
-          selectedAssignment={selectedAssignmentObj}
-          onNotesGenerated={handleNotesGenerated}
-          onQuizGenerated={handleQuizGenerated}
-        />
-      </div>
+      {/* ── Views ───────────────────────────────────────────────────── */}
+      {view === 'dashboard' ? (
+        <div style={styles.layout}>
+          <div style={styles.panel}>
+            <Browser
+              assignments={visibleAssignments}
+              selectedAssignment={selectedAssignment}
+              onSelect={setSelectedAssignment}
+            />
+          </div>
 
-      <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
-        <Controller
-          assignments={assignments}
-          filterCourse={filterCourse}
-          filterStatus={filterStatus}
-          sortBy={sortBy}
-          selectedAssignment={selectedAssignment}
-          onFilterCourse={setFilterCourse}
-          onFilterStatus={setFilterStatus}
-          onSortBy={setSortBy}
-          onMarkComplete={handleMarkComplete}
-        />
-      </div>
+          <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
+            <DetailView
+              selectedAssignment={selectedAssignmentObj}
+              onNotesGenerated={handleNotesGenerated}
+              onQuizGenerated={handleQuizGenerated}
+            />
+          </div>
+
+          <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
+            <Controller
+              assignments={assignments}
+              filterCourse={filterCourse}
+              filterStatus={filterStatus}
+              sortBy={sortBy}
+              selectedAssignment={selectedAssignment}
+              onFilterCourse={setFilterCourse}
+              onFilterStatus={setFilterStatus}
+              onSortBy={setSortBy}
+              onMarkComplete={handleMarkComplete}
+            />
+          </div>
+        </div>
+      ) : (
+        <div style={styles.calLayout}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <CalendarView
+              assignments={visibleAssignments}
+              selectedAssignment={selectedAssignment}
+              onSelect={setSelectedAssignment}
+            />
+          </div>
+          <div style={styles.calSide}>
+            <DetailView
+              selectedAssignment={selectedAssignmentObj}
+              onNotesGenerated={handleNotesGenerated}
+              onQuizGenerated={handleQuizGenerated}
+            />
+            <div style={{ borderTop: '1px solid #21262D' }}>
+              <Controller
+                assignments={assignments}
+                filterCourse={filterCourse}
+                filterStatus={filterStatus}
+                sortBy={sortBy}
+                selectedAssignment={selectedAssignment}
+                onFilterCourse={setFilterCourse}
+                onFilterStatus={setFilterStatus}
+                onSortBy={setSortBy}
+                onMarkComplete={handleMarkComplete}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 const styles = {
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+    backgroundColor: '#0D1117',
+    fontFamily: "'Inter', 'system-ui', sans-serif",
+  },
+  topBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 20px',
+    height: '52px',
+    backgroundColor: '#161B22',
+    borderBottom: '1px solid #21262D',
+    flexShrink: 0,
+  },
+  brand: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  brandDot: {
+    display: 'inline-block',
+    width: '9px',
+    height: '9px',
+    borderRadius: '50%',
+    backgroundColor: '#58A6FF',
+  },
+  brandText: {
+    fontSize: '0.78rem',
+    fontWeight: 700,
+    color: '#8B949E',
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em',
+  },
+  tabs: {
+    display: 'flex',
+    gap: '4px',
+  },
+  tab: {
+    backgroundColor: 'transparent',
+    border: '1px solid transparent',
+    borderRadius: '6px',
+    color: '#8B949E',
+    padding: '5px 14px',
+    fontSize: '0.83rem',
+    fontWeight: 500,
+    cursor: 'pointer',
+    fontFamily: "'Inter', 'system-ui', sans-serif",
+    transition: 'color 0.15s, border-color 0.15s',
+  },
+  tabActive: {
+    color: '#E6EDF3',
+    backgroundColor: '#0D1117',
+    border: '1px solid #30363D',
+  },
+  uploadBtn: {
+    backgroundColor: '#238636',
+    border: '1px solid #2EA043',
+    borderRadius: '6px',
+    color: '#fff',
+    padding: '5px 14px',
+    fontSize: '0.83rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Inter', 'system-ui', sans-serif",
+  },
+  // ── Dashboard layout ──────────────────────────────────────────────
   layout: {
     display: 'grid',
     gridTemplateColumns: '280px 1fr 220px',
-    minHeight: '100vh',
+    flex: 1,
     backgroundColor: '#0D1117',
   },
   panel: {
     borderRight: '1px solid #21262D',
+  },
+  // ── Calendar layout ───────────────────────────────────────────────
+  calLayout: {
+    display: 'flex',
+    flex: 1,
+    overflow: 'hidden',
+  },
+  calSide: {
+    width: '340px',
+    flexShrink: 0,
+    borderLeft: '1px solid #21262D',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
   },
 }
