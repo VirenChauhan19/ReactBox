@@ -52,8 +52,8 @@ const INITIAL_STATE = {
   sortBy: 'dueDate',
 }
 
-export default function App() {
-  const [screen, setScreen] = useState('auth')     // 'auth' | 'upload' | 'dashboard'
+export default function App({ googleEnabled = true }) {
+  const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
   const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar'
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -130,7 +130,13 @@ export default function App() {
 
   // ── Screens ───────────────────────────────────────────────────────────────────
   if (screen === 'auth') {
-    return <AuthScreen onAuth={handleAuth} />
+    return (
+      <AuthScreen
+        googleEnabled={googleEnabled}
+        onAuth={handleAuth}
+        onSkip={() => setScreen('upload')}
+      />
+    )
   }
 
   if (screen === 'upload') {

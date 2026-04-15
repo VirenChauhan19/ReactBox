@@ -1,6 +1,32 @@
 import { useState, useEffect } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
 
+// Safe wrapper — only calls useGoogleLogin when Google OAuth is available
+function GoogleLoginButton({ onAuth }) {
+  const login = useGoogleLogin({
+    scope: [
+      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
+    ].join(' '),
+    onSuccess: async (tokenResponse) => {
+      const res     = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+      })
+      const profile = await res.json()
+      onAuth(tokenResponse.access_token, profile)
+    },
+    onError: (err) => console.error('Google login failed', err),
+  })
+
+  return (
+    <button className="google-btn" style={s.googleBtn} onClick={() => login()}>
+      <GoogleIcon />
+      Continue with Google
+    </button>
+  )
+}
+
 const TITLE    = 'STUDY COMMAND CENTER'
 const SUBTITLE = 'Your AI-powered academic dashboard'
 
@@ -10,9 +36,9 @@ const SUBTITLE = 'Your AI-powered academic dashboard'
 // 2 → subtitle fades in
 // 3 → sign-in card slides up
 
-export default function AuthScreen({ onAuth }) {
-  const [stage,   setStage]   = useState(0)
-  const [typed,   setTyped]   = useState('')
+export default function AuthScreen({ googleEnabled, onAuth, onSkip }) {
+  const [stage,      setStage]      = useState(0)
+  const [typed,      setTyped]      = useState('')
   const [showCursor, setShowCursor] = useState(true)
 
   // Blinking cursor
@@ -23,7 +49,6 @@ export default function AuthScreen({ onAuth }) {
 
   // Sequence controller
   useEffect(() => {
-    // Stage 0 → 1 after short hold
     const t0 = setTimeout(() => setStage(1), 600)
     return () => clearTimeout(t0)
   }, [])
@@ -49,22 +74,6 @@ export default function AuthScreen({ onAuth }) {
     const t = setTimeout(() => setStage(3), 900)
     return () => clearTimeout(t)
   }, [stage])
-
-  const login = useGoogleLogin({
-    scope: [
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/userinfo.email',
-    ].join(' '),
-    onSuccess: async (tokenResponse) => {
-      const res     = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-      })
-      const profile = await res.json()
-      onAuth(tokenResponse.access_token, profile)
-    },
-    onError: (err) => console.error('Google login failed', err),
-  })
 
   return (
     <>
@@ -128,14 +137,27 @@ export default function AuthScreen({ onAuth }) {
           >
             <p style={s.cardLabel}>Get started in seconds</p>
 
-            <button className="google-btn" style={s.googleBtn} onClick={() => login()}>
-              <GoogleIcon />
-              Continue with Google
-            </button>
+            {googleEnabled ? (
+              <GoogleLoginButton onAuth={onAuth} />
+            ) : (
+              <>
+                <button className="google-btn" style={{ ...s.googleBtn, opacity: 0.4, cursor: 'not-allowed' }} disabled>
+                  <GoogleIcon />
+                  Continue with Google
+                </button>
+                <p style={s.noKeyWarning}>
+                  ⚠ <code>VITE_GOOGLE_CLIENT_ID</code> not set in <code>.env</code>
+                </p>
+                <button style={s.skipBtn} onClick={onSkip}>
+                  Continue without Google →
+                </button>
+              </>
+            )}
 
             <p style={s.fine}>
-              Grants access to create events in your Google Calendar only.
-              No data is stored on any server.
+              {googleEnabled
+                ? 'Grants access to create events in your Google Calendar only. No data is stored on any server.'
+                : 'Google Calendar sync will be unavailable until a Client ID is configured.'}
             </p>
           </div>
         </div>
@@ -325,6 +347,26 @@ const s = {
     fontSize:   '0.72rem',
     color:      '#8B949E',
     lineHeight: 1.6,
+  },
+  noKeyWarning: {
+    margin:     '0 0 12px',
+    fontSize:   '0.72rem',
+    color:      '#E3B341',
+    lineHeight: 1.5,
+  },
+  skipBtn: {
+    width:           '100%',
+    padding:         '11px',
+    marginBottom:    '16px',
+    backgroundColor: '#21262D',
+    border:          '1px solid #30363D',
+    borderRadius:    '8px',
+    color:           '#E6EDF3',
+    fontSize:        '0.88rem',
+    fontWeight:      600,
+    cursor:          'pointer',
+    fontFamily:      "'Inter', system-ui, sans-serif",
+    transition:      'background-color .15s',
   },
 
   buildTag: {
