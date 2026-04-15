@@ -48,7 +48,11 @@ async function callGemini(userText) {
   }
 
   const data = await res.json()
-  const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+  const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim()
   const assignments = JSON.parse(raw)
   if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
   return assignments
