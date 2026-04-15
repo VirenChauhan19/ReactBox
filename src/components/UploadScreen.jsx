@@ -65,18 +65,19 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
   const inputRef = useRef()
 
   async function handleChange(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length) return
 
-    setFileName(file.name)
+    setFileName(files.map((f) => f.name).join(', '))
     setError('')
 
     try {
       setPhase('reading')
-      const text = await extractPdfText(file)
+      const texts = await Promise.all(files.map(extractPdfText))
 
       setPhase('parsing')
-      const assignments = await callGemini(text)
+      const results = await Promise.all(texts.map(callGemini))
+      const assignments = results.flat()
 
       onAssignmentsLoaded(assignments)
     } catch (err) {
@@ -121,6 +122,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
             ref={inputRef}
             type="file"
             accept="application/pdf"
+            multiple
             style={{ display: 'none' }}
             onChange={handleChange}
             disabled={isLoading}
@@ -140,7 +142,7 @@ export default function UploadScreen({ onAssignmentsLoaded }) {
                 <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4M8 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <p style={s.dropLabel}>Click to upload or drag & drop</p>
-              <p style={s.dropSub}>PDF files only</p>
+              <p style={s.dropSub}>PDF files only · multiple allowed</p>
             </div>
           )}
         </label>

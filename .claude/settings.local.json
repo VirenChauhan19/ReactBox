@@ -11,7 +11,8 @@
       "Bash(curl -s https://api.github.com/repos/actions/setup-node/releases/latest)",
       "Bash(curl -s https://api.github.com/repos/actions/upload-pages-artifact/releases/latest)",
       "Bash(curl -s https://api.github.com/repos/actions/deploy-pages/releases/latest)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "WebFetch(domain:onetimetable.org)"
     ]
   }
 }
