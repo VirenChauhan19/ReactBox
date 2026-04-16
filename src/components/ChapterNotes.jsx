@@ -63,10 +63,10 @@ function QuizView({ questions }) {
                 const isCorrect = ci === q.correct
                 const isSelected = ci === sel
                 const revealed = sel !== undefined
-                let bg = '#0D1117', border = '#30363D', color = '#C9D1D9', icon = ''
+                let bg = 'var(--bg-main)', border = 'var(--border)', color = 'var(--text-body)', icon = ''
                 if (revealed) {
-                  if (isCorrect) { bg = '#0D2E1A'; border = '#3FB950'; color = '#3FB950'; icon = '✓ ' }
-                  else if (isSelected) { bg = '#2E0D0D'; border = '#F85149'; color = '#F85149'; icon = '✗ ' }
+                  if (isCorrect) { bg = 'var(--correct-bg)'; border = '#3FB950'; color = '#3FB950'; icon = '✓ ' }
+                  else if (isSelected) { bg = 'var(--wrong-bg)'; border = '#F85149'; color = '#F85149'; icon = '✗ ' }
                 }
                 return (
                   <button
@@ -237,13 +237,13 @@ Return ONLY a valid JSON array, no markdown, no explanation:
         <div style={d.tabBar}>
           {chapter.notes && (
             <button
-              style={{ ...d.tabBtn, color: activeTab === 'notes' ? '#E6EDF3' : '#8B949E', borderBottom: activeTab === 'notes' ? '2px solid #58A6FF' : '2px solid transparent', backgroundColor: activeTab === 'notes' ? '#21262D' : 'transparent' }}
+              style={{ ...d.tabBtn, color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'notes' ? '2px solid #58A6FF' : '2px solid transparent', backgroundColor: activeTab === 'notes' ? 'var(--bg-elevated)' : 'transparent' }}
               onClick={() => setActiveTab('notes')}
             >📝 Notes</button>
           )}
           {chapter.quiz && chapter.quiz.length > 0 && (
             <button
-              style={{ ...d.tabBtn, color: activeTab === 'quiz' ? '#E6EDF3' : '#8B949E', borderBottom: activeTab === 'quiz' ? '2px solid #BC8CFF' : '2px solid transparent', backgroundColor: activeTab === 'quiz' ? '#21262D' : 'transparent' }}
+              style={{ ...d.tabBtn, color: activeTab === 'quiz' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'quiz' ? '2px solid #BC8CFF' : '2px solid transparent', backgroundColor: activeTab === 'quiz' ? 'var(--bg-elevated)' : 'transparent' }}
               onClick={() => setActiveTab('quiz')}
             >🎯 Quiz</button>
           )}
@@ -299,7 +299,7 @@ function ChapterCard({ chapter, index, selected, onSelect, onDelete }) {
               {hasQuiz && <span style={cc.badge} title="Quiz available">🎯</span>}
             </div>
           </div>
-          <p style={{ ...cc.name, color: selected ? '#E6EDF3' : hov ? '#C9D1D9' : '#B0BAC6' }}>{chapter.name}</p>
+          <p style={{ ...cc.name, color: selected ? 'var(--text-primary)' : hov ? 'var(--text-body)' : 'var(--text-muted)' }}>{chapter.name}</p>
           <div style={cc.bottom}>
             <span style={cc.meta}>{chapter.pages}p · {chapter.fileName.slice(0, 18)}{chapter.fileName.length > 18 ? '…' : ''}</span>
           </div>
@@ -578,8 +578,8 @@ const CSS = `
   }
 
   .ch-choice-btn:hover {
-    background-color: #1C2128 !important;
-    border-color: #484F58 !important;
+    background-color: var(--bg-hover) !important;
+    border-color: var(--border-strong) !important;
     transform: translateX(4px);
     transition: all .15s ease;
   }
@@ -590,21 +590,23 @@ const m = {
   root: {
     display: 'flex',
     flex: 1,
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     fontFamily: "'Inter', system-ui, sans-serif",
     overflow: 'hidden',
     minHeight: 0,
+    transition: 'background-color 0.25s ease',
   },
   sidebar: {
     width: '300px',
     flexShrink: 0,
-    borderRight: '1px solid #21262D',
-    backgroundColor: '#0D1117',
+    borderRight: '1px solid var(--bg-elevated)',
+    backgroundColor: 'var(--bg-main)',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
     padding: '18px 14px',
     overflowY: 'auto',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   sideHeader: {
     display: 'flex',
@@ -615,18 +617,18 @@ const m = {
   sideLabel: {
     fontSize: '0.68rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
     margin: 0,
   },
   countBadge: {
-    backgroundColor: '#21262D',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
     borderRadius: '99px',
     fontSize: '0.68rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     padding: '1px 8px',
   },
   chapterList: {
@@ -641,12 +643,12 @@ const m = {
   noChaptersText: {
     margin: '0 0 4px',
     fontSize: '0.83rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
   },
   noChaptersSub: {
     margin: 0,
     fontSize: '0.75rem',
-    color: '#484F58',
+    color: 'var(--border-strong)',
   },
   detail: {
     flex: 1,
@@ -659,7 +661,7 @@ const d = {
   panel: {
     padding: '28px 28px 40px',
     fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     minHeight: '100%',
   },
   empty: {
@@ -675,15 +677,15 @@ const d = {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyIcon: { fontSize: '2.2rem' },
-  emptyTitle: { margin: '0', fontSize: '1.1rem', fontWeight: 700, color: '#C9D1D9' },
-  emptySub:   { margin: '0', fontSize: '0.83rem', color: '#8B949E', textAlign: 'center', maxWidth: '260px', lineHeight: 1.5 },
+  emptyTitle: { margin: '0', fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-body)' },
+  emptySub:   { margin: '0', fontSize: '0.83rem', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '260px', lineHeight: 1.5 },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -702,46 +704,47 @@ const d = {
     margin: '0 0 4px',
     fontSize: '1.5rem',
     fontWeight: 700,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     lineHeight: 1.2,
   },
   fileName: {
     margin: 0,
     fontSize: '0.75rem',
-    color: '#484F58',
+    color: 'var(--border-strong)',
   },
   headerBadge: {
     flexShrink: 0,
     marginTop: '4px',
   },
   pagesBadge: {
-    backgroundColor: '#21262D',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
     fontSize: '0.72rem',
     fontWeight: 600,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     padding: '4px 10px',
   },
   preview: {
-    backgroundColor: '#161B22',
-    border: '1px solid #21262D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--bg-elevated)',
     borderRadius: '8px',
     padding: '14px 16px',
     marginBottom: '20px',
+    transition: 'background-color 0.25s ease',
   },
   previewLabel: {
     margin: '0 0 6px',
     fontSize: '0.6rem',
     fontWeight: 700,
-    color: '#484F58',
+    color: 'var(--border-strong)',
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
   },
   previewText: {
     margin: 0,
     fontSize: '0.8rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     lineHeight: 1.65,
     fontStyle: 'italic',
   },
@@ -756,16 +759,16 @@ const d = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    backgroundColor: '#161B22',
-    color: '#E6EDF3',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '11px 20px',
     fontSize: '0.85rem',
     fontWeight: 600,
     fontFamily: "'Inter', system-ui, sans-serif",
     cursor: 'pointer',
-    transition: 'transform .18s ease, box-shadow .18s ease, border-color .18s ease, opacity .15s',
+    transition: 'transform .18s ease, box-shadow .18s ease, border-color .18s ease, opacity .15s, background-color 0.25s ease',
     overflow: 'hidden',
   },
   btnGlow: {
@@ -777,13 +780,13 @@ const d = {
     display: 'inline-block',
     width: '13px',
     height: '13px',
-    border: '2px solid #30363D',
+    border: '2px solid var(--border)',
     borderRadius: '50%',
     animation: 'spin .7s linear infinite',
     flexShrink: 0,
   },
   errorBox: {
-    backgroundColor: '#1C0A0A',
+    backgroundColor: 'var(--overdue-bg)',
     border: '1px solid #F85149',
     borderRadius: '6px',
     padding: '10px 14px',
@@ -798,7 +801,7 @@ const d = {
     gap: '2px',
     marginTop: '24px',
     marginBottom: '16px',
-    borderBottom: '1px solid #21262D',
+    borderBottom: '1px solid var(--bg-elevated)',
   },
   tabBtn: {
     background: 'none',
@@ -814,28 +817,29 @@ const d = {
     marginBottom: '-1px',
   },
   notesBlock: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '20px',
     fontSize: '0.85rem',
-    color: '#C9D1D9',
+    color: 'var(--text-body)',
     lineHeight: 1.8,
     whiteSpace: 'pre-wrap',
     fontFamily: "'Inter', system-ui, sans-serif",
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
 }
 
 const cc = {
   card: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     cursor: 'pointer',
     display: 'flex',
     overflow: 'hidden',
     position: 'relative',
-    transition: 'transform .18s ease, box-shadow .18s ease, outline .15s ease',
+    transition: 'transform .18s ease, box-shadow .18s ease, outline .15s ease, background-color 0.25s ease',
   },
   accentBar: {
     width: '3px',
@@ -877,14 +881,14 @@ const cc = {
     transition: 'color .15s',
   },
   bottom: { display: 'flex', alignItems: 'center' },
-  meta: { fontSize: '0.68rem', color: '#484F58' },
+  meta: { fontSize: '0.68rem', color: 'var(--border-strong)' },
   deleteBtn: {
     position: 'absolute',
     top: '8px',
     right: '8px',
     width: '22px',
     height: '22px',
-    border: '1px solid #30363D',
+    border: '1px solid var(--border)',
     borderRadius: '4px',
     fontSize: '0.65rem',
     display: 'flex',
@@ -899,7 +903,7 @@ const cc = {
 
 const uz = {
   zone: {
-    border: '2px dashed #30363D',
+    border: '2px dashed var(--border)',
     borderRadius: '10px',
     padding: '22px 16px',
     cursor: 'pointer',
@@ -916,13 +920,13 @@ const uz = {
     width: '52px',
     height: '52px',
     borderRadius: '50%',
-    border: '1px solid #30363D',
-    backgroundColor: '#161B22',
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--bg-surface)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: '4px',
-    transition: 'border-color .2s',
+    transition: 'border-color .2s, background-color 0.25s ease',
   },
   label: {
     margin: 0,
@@ -933,19 +937,20 @@ const uz = {
   sub: {
     margin: 0,
     fontSize: '0.72rem',
-    color: '#484F58',
+    color: 'var(--border-strong)',
   },
   formWrap: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '16px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   formTitle: {
     margin: '0 0 12px',
     fontSize: '0.83rem',
     fontWeight: 700,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
   },
   formRow: {
     display: 'flex',
@@ -953,24 +958,24 @@ const uz = {
     gap: '6px',
     marginBottom: '12px',
     paddingBottom: '12px',
-    borderBottom: '1px solid #21262D',
+    borderBottom: '1px solid var(--bg-elevated)',
   },
   fileLabel: {
     margin: 0,
     fontSize: '0.72rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     fontWeight: 500,
   },
   input: {
-    backgroundColor: '#0D1117',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-main)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     fontSize: '0.8rem',
     fontFamily: "'Inter', system-ui, sans-serif",
     padding: '7px 10px',
     outline: 'none',
-    transition: 'border-color .15s',
+    transition: 'border-color .15s, background-color 0.25s ease',
     width: '100%',
     boxSizing: 'border-box',
   },
@@ -982,9 +987,9 @@ const uz = {
   },
   cancelBtn: {
     backgroundColor: 'transparent',
-    border: '1px solid #30363D',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     fontSize: '0.8rem',
     fontWeight: 600,
     padding: '7px 14px',
@@ -1019,16 +1024,17 @@ const uz = {
 const qs = {
   wrap: { display: 'flex', flexDirection: 'column', gap: '12px' },
   question: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '16px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   qText: {
     margin: '0 0 12px',
     fontSize: '0.88rem',
     fontWeight: 500,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     lineHeight: 1.5,
     display: 'flex',
     gap: '8px',
@@ -1066,13 +1072,14 @@ const qs = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '6px',
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '12px',
     padding: '28px',
     marginTop: '8px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   scoreEmoji: { fontSize: '2.5rem' },
-  scoreNum: { fontSize: '2rem', fontWeight: 800, color: '#E6EDF3', margin: '0' },
-  scoreLabel: { fontSize: '0.85rem', color: '#8B949E', fontWeight: 500, margin: '0' },
+  scoreNum: { fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0' },
+  scoreLabel: { fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 500, margin: '0' },
 }

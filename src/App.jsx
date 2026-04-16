@@ -57,6 +57,12 @@ const INITIAL_STATE = {
 export default function App({ googleEnabled = true }) {
   const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
   const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters'
+  const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
+
+  // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   const [googleToken,  setGoogleToken]  = useState(null)
@@ -154,10 +160,10 @@ export default function App({ googleEnabled = true }) {
   }
 
   const syncLabel = { idle: '', syncing: '⟳ Syncing…', synced: '✓ Synced', error: '⚠ Sync error' }[syncStatus]
-  const syncColor = { idle: 'transparent', syncing: '#8B949E', synced: '#3FB950', error: '#F85149' }[syncStatus]
+  const syncColor = { idle: 'transparent', syncing: 'var(--text-muted)', synced: '#3FB950', error: '#F85149' }[syncStatus]
 
   return (
-    <div style={styles.root}>
+    <div style={styles.root} data-theme={theme}>
       {/* ── Top nav bar ──────────────────────────────────────────────── */}
       <div style={styles.topBar}>
         <div style={styles.brand}>
@@ -176,11 +182,11 @@ export default function App({ googleEnabled = true }) {
               onClick={() => setView(id)}
               style={{
                 ...styles.tab,
-                color:           view === id ? '#E6EDF3' : '#8B949E',
+                color:           view === id ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottom:    view === id
                   ? `2px solid ${id === 'chapters' ? '#BC8CFF' : '#58A6FF'}`
                   : '2px solid transparent',
-                backgroundColor: view === id ? '#21262D' : 'transparent',
+                backgroundColor: view === id ? 'var(--bg-elevated)' : 'transparent',
               }}
             >
               {label}
@@ -192,6 +198,21 @@ export default function App({ googleEnabled = true }) {
           {syncStatus !== 'idle' && (
             <span style={{ ...styles.syncBadge, color: syncColor }}>{syncLabel}</span>
           )}
+          <button
+            style={{
+              ...styles.themeBtn,
+              backgroundColor: theme === 'dark' ? 'var(--bg-elevated)' : 'var(--bg-elevated)',
+              color: theme === 'dark' ? '#E3B341' : '#636C76',
+              border: '1px solid var(--border)',
+            }}
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? '☀' : '☾'}
+            <span style={{ fontSize: '0.72rem', fontWeight: 600, marginLeft: '5px' }}>
+              {theme === 'dark' ? 'Light' : 'Dark'}
+            </span>
+          </button>
           <button style={styles.uploadBtn} onClick={() => setShowUpload(true)}>
             + Upload
           </button>
@@ -216,14 +237,14 @@ export default function App({ googleEnabled = true }) {
               onSelect={setSelectedAssignment}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)' }}>
             <DetailView
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
               onQuizGenerated={handleQuizGenerated}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid #21262D' }}>
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)' }}>
             <Controller
               assignments={assignments}
               filterCourse={filterCourse}
@@ -252,7 +273,7 @@ export default function App({ googleEnabled = true }) {
               onNotesGenerated={handleNotesGenerated}
               onQuizGenerated={handleQuizGenerated}
             />
-            <div style={{ borderTop: '1px solid #21262D' }}>
+            <div style={{ borderTop: '1px solid var(--border)' }}>
               <Controller
                 assignments={assignments}
                 filterCourse={filterCourse}
@@ -295,8 +316,9 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     fontFamily: "'Inter', 'system-ui', sans-serif",
+    transition: 'background-color 0.25s ease',
   },
   topBar: {
     display: 'flex',
@@ -304,9 +326,10 @@ const styles = {
     justifyContent: 'space-between',
     padding: '0 20px',
     height: '52px',
-    backgroundColor: '#161B22',
-    borderBottom: '1px solid #21262D',
+    backgroundColor: 'var(--bg-surface)',
+    borderBottom: '1px solid var(--border)',
     flexShrink: 0,
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   brand: {
     display: 'flex',
@@ -323,7 +346,7 @@ const styles = {
   brandText: {
     fontSize: '0.78rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
   },
@@ -336,7 +359,7 @@ const styles = {
     border: 'none',
     borderBottom: '2px solid transparent',
     borderRadius: '6px 6px 0 0',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     padding: '6px 16px',
     fontSize: '0.85rem',
     fontWeight: 600,
@@ -354,6 +377,18 @@ const styles = {
     fontSize: '0.75rem',
     fontWeight: 500,
   },
+  themeBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: '20px',
+    padding: '5px 12px',
+    fontSize: '0.9rem',
+    cursor: 'pointer',
+    fontFamily: "'Inter', 'system-ui', sans-serif",
+    transition: 'background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease',
+    fontWeight: 600,
+    lineHeight: 1,
+  },
   uploadBtn: {
     backgroundColor: '#238636',
     border: '1px solid #2EA043',
@@ -364,22 +399,23 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     fontFamily: "'Inter', 'system-ui', sans-serif",
+    transition: 'opacity 0.15s ease',
   },
   avatar: {
     width: '30px',
     height: '30px',
     borderRadius: '50%',
-    border: '2px solid #30363D',
+    border: '2px solid var(--border)',
     objectFit: 'cover',
   },
   layout: {
     display: 'grid',
     gridTemplateColumns: '280px 1fr 220px',
     flex: 1,
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
   },
   panel: {
-    borderRight: '1px solid #21262D',
+    borderRight: '1px solid var(--border)',
   },
   calLayout: {
     display: 'flex',
@@ -389,7 +425,7 @@ const styles = {
   calSide: {
     width: '340px',
     flexShrink: 0,
-    borderLeft: '1px solid #21262D',
+    borderLeft: '1px solid var(--border)',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',

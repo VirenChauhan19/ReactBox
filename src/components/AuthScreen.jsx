@@ -213,12 +213,13 @@ const s = {
   page: {
     position:        'relative',
     minHeight:       '100vh',
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     display:         'flex',
     alignItems:      'center',
     justifyContent:  'center',
     fontFamily:      "'Inter', 'system-ui', sans-serif",
     overflow:        'hidden',
+    transition:      'background-color 0.25s ease',
   },
 
   // Dot grid
@@ -226,7 +227,7 @@ const s = {
     position:   'absolute',
     inset:       0,
     backgroundImage:
-      'radial-gradient(circle, #30363D 1px, transparent 1px)',
+      'radial-gradient(circle, var(--grid-dot) 1px, transparent 1px)',
     backgroundSize: '40px 40px',
     animation:  'gridDrift 8s linear infinite',
     opacity:    0.35,
@@ -243,7 +244,7 @@ const s = {
   orb1: {
     width:           '420px',
     height:          '420px',
-    backgroundColor: '#1D3A6A',
+    backgroundColor: 'var(--orb1-color)',
     top:             '-80px',
     left:            '-100px',
     animation:       'orb1Float 9s ease-in-out infinite',
@@ -251,7 +252,7 @@ const s = {
   orb2: {
     width:           '360px',
     height:          '360px',
-    backgroundColor: '#0F2D20',
+    backgroundColor: 'var(--orb2-color)',
     bottom:          '-60px',
     right:           '-80px',
     animation:       'orb2Float 11s ease-in-out infinite',
@@ -287,7 +288,7 @@ const s = {
     margin:      0,
     fontSize:    'clamp(1.6rem, 4vw, 2.8rem)',
     fontWeight:  800,
-    color:       '#E6EDF3',
+    color:       'var(--text-primary)',
     letterSpacing: '0.12em',
     textShadow:  '0 0 40px #58A6FF33',
     fontFamily:  "'Inter', 'system-ui', sans-serif",
@@ -297,7 +298,7 @@ const s = {
   subtitle: {
     margin:   '0 0 22px',
     fontSize: '1rem',
-    color:    '#8B949E',
+    color:    'var(--text-muted)',
     letterSpacing: '0.02em',
   },
 
@@ -310,18 +311,19 @@ const s = {
   },
 
   card: {
-    backgroundColor: '#161B22',
-    border:          '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border:          '1px solid var(--border)',
     borderRadius:    '14px',
     padding:         '36px 40px',
     width:           '100%',
     maxWidth:        '380px',
+    transition:      'background-color 0.25s ease, border-color 0.25s ease',
   },
   cardLabel: {
     margin:       '0 0 20px',
     fontSize:     '0.8rem',
     fontWeight:   700,
-    color:        '#8B949E',
+    color:        'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
   },
@@ -345,7 +347,7 @@ const s = {
   fine: {
     margin:     0,
     fontSize:   '0.72rem',
-    color:      '#8B949E',
+    color:      'var(--text-muted)',
     lineHeight: 1.6,
   },
   noKeyWarning: {
@@ -358,10 +360,10 @@ const s = {
     width:           '100%',
     padding:         '11px',
     marginBottom:    '16px',
-    backgroundColor: '#21262D',
-    border:          '1px solid #30363D',
+    backgroundColor: 'var(--bg-elevated)',
+    border:          '1px solid var(--border)',
     borderRadius:    '8px',
-    color:           '#E6EDF3',
+    color:           'var(--text-primary)',
     fontSize:        '0.88rem',
     fontWeight:      600,
     cursor:          'pointer',
@@ -374,7 +376,7 @@ const s = {
     bottom:     '16px',
     right:      '20px',
     fontSize:   '0.68rem',
-    color:      '#30363D',
+    color:      'var(--border)',
     letterSpacing: '0.06em',
   },
 }

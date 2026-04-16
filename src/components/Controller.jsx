@@ -66,7 +66,7 @@ function ProgressRing({ pct }) {
     <svg width={R * 2 + 10} height={R * 2 + 10} style={{ display: 'block' }}>
       <circle
         cx={R + 5} cy={R + 5} r={R}
-        fill="none" stroke="#21262D" strokeWidth="5"
+        fill="none" stroke="var(--bg-elevated)" strokeWidth="5"
       />
       <circle
         cx={R + 5} cy={R + 5} r={R}
@@ -197,7 +197,7 @@ export default function Controller({
                 key={value}
                 style={{
                   ...s.statusDot,
-                  backgroundColor: selected.status === value ? color : '#30363D',
+                  backgroundColor: selected.status === value ? color : 'var(--border)',
                   boxShadow: selected.status === value ? `0 0 6px ${color}88` : 'none',
                 }}
                 title={label}
@@ -226,19 +226,20 @@ function FilterGroup({ id, label, value, onChange, children }) {
 
 const s = {
   container: {
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     minHeight: '100vh',
     padding: '22px 14px',
     fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+    transition: 'background-color 0.25s ease',
   },
   panelLabel: {
     fontSize: '0.68rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
   },
@@ -246,10 +247,11 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '14px',
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '12px 14px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   ringMeta: {
     display: 'flex',
@@ -259,11 +261,11 @@ const s = {
   ringDone: {
     fontSize: '1rem',
     fontWeight: 700,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
   },
   ringTotal: {
     fontSize: '0.72rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
   },
   group: {
     display: 'flex',
@@ -273,25 +275,25 @@ const s = {
   filterLabel: {
     fontSize: '0.68rem',
     fontWeight: 600,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
   },
   select: {
-    backgroundColor: '#161B22',
-    color: '#E6EDF3',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
     borderRadius: '6px',
     padding: '7px 10px',
     fontSize: '0.83rem',
     fontFamily: "'Inter', system-ui, sans-serif",
     cursor: 'pointer',
     outline: 'none',
-    transition: 'border-color .15s',
+    transition: 'border-color .15s, background-color 0.25s ease',
   },
   divider: {
     height: '1px',
-    backgroundColor: '#21262D',
+    backgroundColor: 'var(--bg-elevated)',
   },
   btnWrap: {
     position: 'relative',
@@ -311,21 +313,22 @@ const s = {
     boxShadow: '0 2px 8px rgba(46,160,67,.25)',
   },
   markDone: {
-    backgroundColor: '#161B22',
+    backgroundColor: 'var(--bg-surface)',
     color: '#3FB950',
     border: '1px solid #3FB950',
     boxShadow: '0 0 8px rgba(63,185,80,.15)',
   },
   selectedCard: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '11px 13px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   selLabel: {
     fontSize: '0.62rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.07em',
     marginBottom: '4px',
@@ -333,7 +336,7 @@ const s = {
   selTitle: {
     fontSize: '0.83rem',
     fontWeight: 500,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     marginBottom: '8px',
     lineHeight: 1.35,
   },
@@ -351,6 +354,6 @@ const s = {
   },
   selStatus: {
     fontSize: '0.72rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
   },
 }

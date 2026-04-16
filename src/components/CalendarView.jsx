@@ -131,14 +131,14 @@ function CalCell({ cell, asgns, isToday, isPast, selectedAssignment, onSelect })
       style={{
         ...s.cell,
         opacity:         cell.current ? 1 : 0.25,
-        backgroundColor: isToday   ? '#1C2A3A'
-                       : hasOverdue ? '#1A0D0D'
-                       : hov && hasAsgns ? '#1C2128'
-                       : '#161B22',
+        backgroundColor: isToday   ? 'color-mix(in srgb, #58A6FF 15%, var(--bg-surface))'
+                       : hasOverdue ? 'var(--wrong-bg)'
+                       : hov && hasAsgns ? 'var(--bg-hover)'
+                       : 'var(--bg-surface)',
         border: isToday    ? '1px solid #58A6FF'
               : hasOverdue ? '1px solid #F8514944'
-              : hov && hasAsgns ? '1px solid #484F58'
-              : '1px solid #21262D',
+              : hov && hasAsgns ? '1px solid var(--border-strong)'
+              : '1px solid var(--bg-elevated)',
         boxShadow: isToday ? '0 0 0 2px #58A6FF33' : 'none',
         transition: 'background-color .15s, border-color .15s, box-shadow .15s',
       }}
@@ -146,7 +146,7 @@ function CalCell({ cell, asgns, isToday, isPast, selectedAssignment, onSelect })
       <span
         style={{
           ...s.dayNum,
-          color:      isToday ? '#58A6FF' : hasOverdue ? '#F85149' : cell.current ? '#E6EDF3' : '#484F58',
+          color:      isToday ? '#58A6FF' : hasOverdue ? '#F85149' : cell.current ? 'var(--text-primary)' : 'var(--border-strong)',
           fontWeight: isToday || hasOverdue ? 700 : 400,
         }}
       >
@@ -165,8 +165,8 @@ function CalCell({ cell, asgns, isToday, isPast, selectedAssignment, onSelect })
               onClick={(e) => { e.stopPropagation(); cell.current && onSelect(a.id) }}
               style={{
                 ...s.chip,
-                backgroundColor: a.status === 'completed' ? '#21262D' : c + '22',
-                color:           a.status === 'completed' ? '#8B949E' : c,
+                backgroundColor: a.status === 'completed' ? 'var(--bg-elevated)' : c + '22',
+                color:           a.status === 'completed' ? 'var(--text-muted)' : c,
                 border:          isSel ? `1px solid ${c}` : `1px solid ${c}44`,
                 boxShadow:       isSel ? `0 0 6px ${c}66` : 'none',
                 textDecoration:  a.status === 'completed' ? 'line-through' : 'none',
@@ -196,7 +196,7 @@ function NavBtn({ children, onClick }) {
       onMouseLeave={() => setHov(false)}
       style={{
         ...s.navBtn,
-        backgroundColor: hov ? '#21262D' : '#161B22',
+        backgroundColor: hov ? 'var(--bg-elevated)' : 'var(--bg-surface)',
         transform:       hov ? 'scale(1.08)' : 'scale(1)',
         boxShadow:       hov ? '0 0 12px rgba(88,166,255,.2)' : 'none',
       }}
@@ -219,15 +219,16 @@ const CSS = `
 
 const s = {
   wrap: {
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     minHeight: '100vh',
     padding: '24px 18px',
     fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
+    transition: 'background-color 0.25s ease',
   },
   header: {
     display: 'flex',
@@ -235,9 +236,9 @@ const s = {
     justifyContent: 'space-between',
   },
   navBtn: {
-    border: '1px solid #30363D',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     padding: '7px 18px',
     fontSize: '1rem',
     cursor: 'pointer',
@@ -253,12 +254,12 @@ const s = {
   monthTitle: {
     fontSize: '1.2rem',
     fontWeight: 800,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     letterSpacing: '0.01em',
   },
   yearLabel: {
     fontSize: '0.72rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     fontWeight: 500,
   },
   legend: {
@@ -280,7 +281,7 @@ const s = {
   },
   legendTxt: {
     fontSize: '0.7rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
   },
   dayLabels: {
     display: 'grid',
@@ -290,7 +291,7 @@ const s = {
   dayLabel: {
     fontSize: '0.65rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
     textAlign: 'center',
@@ -336,7 +337,7 @@ const s = {
   },
   more: {
     fontSize: '0.58rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     paddingLeft: '3px',
   },
 }

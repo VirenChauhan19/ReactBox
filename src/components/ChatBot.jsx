@@ -94,8 +94,8 @@ function Bubble({ msg }) {
       {!isUser && <div style={b.avatar}>AI</div>}
       <div style={{
         ...b.bubble,
-        backgroundColor: isUser ? '#1D4ED8' : '#1C2128',
-        border:          isUser ? '1px solid #2563EB' : '1px solid #30363D',
+        backgroundColor: isUser ? '#1D4ED8' : 'var(--bg-hover)',
+        border:          isUser ? '1px solid #2563EB' : '1px solid var(--border)',
         borderRadius:    isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
         alignSelf:       isUser ? 'flex-end' : 'flex-start',
       }}>
@@ -121,7 +121,7 @@ const b = {
   text: {
     margin: 0,
     fontSize: '0.83rem',
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     lineHeight: 1.55,
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
@@ -129,7 +129,7 @@ const b = {
   time: {
     display: 'block',
     fontSize: '0.6rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     marginTop: '4px',
     textAlign: 'right',
   },
@@ -234,7 +234,7 @@ export default function ChatBot({ assignments, userName }) {
             {loading && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '10px' }}>
                 <div style={b.avatar}>AI</div>
-                <div style={{ ...b.bubble, backgroundColor: '#1C2128', border: '1px solid #30363D', borderRadius: '18px 18px 18px 4px' }}>
+                <div style={{ ...b.bubble, backgroundColor: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: '18px 18px 18px 4px' }}>
                   <TypingDots />
                 </div>
               </div>
@@ -322,22 +322,23 @@ const s = {
     right:           '24px',
     width:           '360px',
     height:          '520px',
-    backgroundColor: '#161B22',
-    border:          '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border:          '1px solid var(--border)',
     borderRadius:    '16px',
-    boxShadow:       '0 24px 60px rgba(0,0,0,.6)',
+    boxShadow:       '0 24px 60px rgba(0,0,0,.5)',
     display:         'flex',
     flexDirection:   'column',
     zIndex:           200,
     overflow:        'hidden',
     fontFamily:      "'Inter', system-ui, sans-serif",
+    transition:      'background-color 0.25s ease, border-color 0.25s ease',
   },
   header: {
     display:         'flex',
     alignItems:      'center',
     justifyContent:  'space-between',
     padding:         '14px 16px',
-    borderBottom:    '1px solid #21262D',
+    borderBottom:    '1px solid var(--bg-elevated)',
     flexShrink:       0,
   },
   headerLeft: {
@@ -361,18 +362,18 @@ const s = {
     margin:     0,
     fontSize:   '0.88rem',
     fontWeight: 700,
-    color:      '#E6EDF3',
+    color:      'var(--text-primary)',
   },
   headerSub: {
     margin:   0,
     fontSize: '0.65rem',
-    color:    '#8B949E',
+    color:    'var(--text-muted)',
   },
   closeBtn: {
     background:   'none',
-    border:       '1px solid #30363D',
+    border:       '1px solid var(--border)',
     borderRadius: '6px',
-    color:        '#8B949E',
+    color:        'var(--text-muted)',
     fontSize:     '0.8rem',
     width:        '26px',
     height:       '26px',
@@ -393,35 +394,35 @@ const s = {
     display:    'flex',
     flexWrap:   'wrap',
     gap:        '6px',
-    borderTop:  '1px solid #21262D',
+    borderTop:  '1px solid var(--bg-elevated)',
     flexShrink:  0,
   },
   suggestion: {
-    backgroundColor: '#21262D',
-    border:          '1px solid #30363D',
+    backgroundColor: 'var(--bg-elevated)',
+    border:          '1px solid var(--border)',
     borderRadius:    '99px',
-    color:           '#8B949E',
+    color:           'var(--text-muted)',
     fontSize:        '0.72rem',
     padding:         '4px 10px',
     cursor:          'pointer',
     fontFamily:      "'Inter', system-ui, sans-serif",
-    transition:      'color .15s, border-color .15s',
+    transition:      'color .15s, border-color .15s, background-color 0.25s ease',
     whiteSpace:      'nowrap',
   },
   inputRow: {
     display:      'flex',
     gap:          '8px',
     padding:      '10px 12px',
-    borderTop:    '1px solid #21262D',
+    borderTop:    '1px solid var(--bg-elevated)',
     alignItems:   'flex-end',
     flexShrink:    0,
   },
   textarea: {
     flex:            1,
-    backgroundColor: '#0D1117',
-    border:          '1px solid #30363D',
+    backgroundColor: 'var(--bg-main)',
+    border:          '1px solid var(--border)',
     borderRadius:    '10px',
-    color:           '#E6EDF3',
+    color:           'var(--text-primary)',
     fontSize:        '0.83rem',
     padding:         '9px 12px',
     fontFamily:      "'Inter', system-ui, sans-serif",
@@ -430,7 +431,7 @@ const s = {
     lineHeight:      1.5,
     maxHeight:       '100px',
     overflowY:       'auto',
-    transition:      'border-color .15s',
+    transition:      'border-color .15s, background-color 0.25s ease',
   },
   sendBtn: {
     backgroundColor: '#58A6FF',
@@ -473,10 +474,9 @@ const s = {
     zIndex:           200,
     transition:      'transform .2s, background-color .2s, box-shadow .2s',
     animation:       'glowPulse 3s ease-in-out infinite',
-    position:        'fixed',
   },
   fabOpen: {
-    backgroundColor: '#30363D',
+    backgroundColor: 'var(--border)',
     boxShadow:       '0 4px 12px rgba(0,0,0,.4)',
     animation:       'none',
   },
@@ -495,6 +495,6 @@ const s = {
     alignItems:      'center',
     justifyContent:  'center',
     padding:         '0 4px',
-    border:          '2px solid #0D1117',
+    border:          '2px solid var(--badge-border)',
   },
 }

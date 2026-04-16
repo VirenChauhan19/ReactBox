@@ -133,7 +133,7 @@ function AssignmentCard({ asgn, index, selected, onSelect }) {
             style={{
               ...s.title,
               textDecoration: done ? 'line-through' : 'none',
-              color: done ? '#8B949E' : '#E6EDF3',
+              color: done ? 'var(--text-muted)' : 'var(--text-primary)',
             }}
           >
             {asgn.title}
@@ -143,7 +143,7 @@ function AssignmentCard({ asgn, index, selected, onSelect }) {
             <span
               style={{
                 ...s.dueDate,
-                color: overdue ? '#F85149' : '#8B949E',
+                color: overdue ? '#F85149' : 'var(--text-muted)',
               }}
             >
               {overdue ? `⚠ Past due ${asgn.dueDate}` : `Due ${asgn.dueDate}`}
@@ -161,15 +161,16 @@ function AssignmentCard({ asgn, index, selected, onSelect }) {
 
 const s = {
   container: {
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     minHeight: '100vh',
     padding: '22px 14px',
     fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
+    transition: 'background-color 0.25s ease',
   },
   header: {
     display: 'flex',
@@ -179,17 +180,17 @@ const s = {
   panelLabel: {
     fontSize: '0.68rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
   },
   countBadge: {
-    backgroundColor: '#21262D',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-elevated)',
+    border: '1px solid var(--border)',
     borderRadius: '99px',
     fontSize: '0.68rem',
     fontWeight: 700,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     padding: '1px 8px',
   },
   progressWrap: {
@@ -203,7 +204,7 @@ const s = {
   },
   progressText: {
     fontSize: '0.7rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
   },
   progressPct: {
     fontSize: '0.7rem',
@@ -212,7 +213,7 @@ const s = {
   },
   progressTrack: {
     height: '4px',
-    backgroundColor: '#21262D',
+    backgroundColor: 'var(--bg-elevated)',
     borderRadius: '4px',
     overflow: 'hidden',
   },
@@ -228,19 +229,20 @@ const s = {
   },
   empty: {
     fontSize: '0.83rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: '20px',
   },
   card: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     cursor: 'pointer',
     display: 'flex',
     overflow: 'hidden',
     position: 'relative',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   accentBar: {
     width: '3px',
@@ -299,8 +301,8 @@ const s = {
   weightBadge: {
     fontSize: '0.68rem',
     fontWeight: 600,
-    color: '#8B949E',
-    backgroundColor: '#21262D',
+    color: 'var(--text-muted)',
+    backgroundColor: 'var(--bg-elevated)',
     padding: '1px 6px',
     borderRadius: '4px',
   },

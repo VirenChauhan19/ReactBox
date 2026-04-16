@@ -52,14 +52,14 @@ function QuizView({ questions }) {
                 const isSelected = ci === sel
                 const revealed   = sel !== undefined
 
-                let bg     = '#0D1117'
-                let border = '#30363D'
-                let color  = '#C9D1D9'
+                let bg     = 'var(--bg-main)'
+                let border = 'var(--border)'
+                let color  = 'var(--text-body)'
                 let icon   = ''
 
                 if (revealed) {
-                  if (isCorrect)        { bg = '#0D2E1A'; border = '#3FB950'; color = '#3FB950'; icon = '✓ ' }
-                  else if (isSelected)  { bg = '#2E0D0D'; border = '#F85149'; color = '#F85149'; icon = '✗ ' }
+                  if (isCorrect)        { bg = 'var(--correct-bg)'; border = '#3FB950'; color = '#3FB950'; icon = '✓ ' }
+                  else if (isSelected)  { bg = 'var(--wrong-bg)'; border = '#F85149'; color = '#F85149'; icon = '✗ ' }
                 }
 
                 return (
@@ -278,7 +278,7 @@ function MetaChip({ icon, label, value, highlight }) {
       <span style={s.metaIcon}>{icon}</span>
       <div>
         <p style={s.metaLabel}>{label}</p>
-        <p style={{ ...s.metaValue, color: highlight ?? '#E6EDF3' }}>{value}</p>
+        <p style={{ ...s.metaValue, color: highlight ?? 'var(--text-primary)' }}>{value}</p>
       </div>
     </div>
   )
@@ -316,9 +316,9 @@ function TabBtn({ active, onClick, children }) {
       onClick={onClick}
       style={{
         ...s.tabBtn,
-        color:           active ? '#E6EDF3' : '#8B949E',
+        color:           active ? 'var(--text-primary)' : 'var(--text-muted)',
         borderBottom:    active ? '2px solid #58A6FF' : '2px solid transparent',
-        backgroundColor: active ? '#21262D' : 'transparent',
+        backgroundColor: active ? 'var(--bg-elevated)' : 'transparent',
       }}
     >
       {children}
@@ -336,8 +336,8 @@ function ErrorBox({ msg }) {
 
 const CSS = `
   .choice-btn:hover {
-    background-color: #1C2128 !important;
-    border-color: #484F58 !important;
+    background-color: var(--bg-hover) !important;
+    border-color: var(--border-strong) !important;
     transform: translateX(3px);
     transition: all .15s ease;
   }
@@ -345,12 +345,13 @@ const CSS = `
 
 const s = {
   container: {
-    backgroundColor: '#0D1117',
+    backgroundColor: 'var(--bg-main)',
     minHeight: '100vh',
     padding: '24px 22px',
     fontFamily: "'Inter', system-ui, sans-serif",
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     overflowY: 'auto',
+    transition: 'background-color 0.25s ease',
   },
   empty: {
     display: 'flex',
@@ -361,7 +362,7 @@ const s = {
     gap: '12px',
   },
   emptyIcon: { fontSize: '2.5rem' },
-  emptyText: { fontSize: '0.88rem', color: '#8B949E' },
+  emptyText: { fontSize: '0.88rem', color: 'var(--text-muted)' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -386,7 +387,7 @@ const s = {
     margin: '0 0 16px',
     fontSize: '1.35rem',
     fontWeight: 700,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     lineHeight: 1.3,
     transition: 'opacity .2s',
   },
@@ -400,16 +401,17 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '8px 12px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   metaIcon: { fontSize: '1rem' },
   metaLabel: {
     fontSize: '0.6rem',
     fontWeight: 600,
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
     marginBottom: '2px',
@@ -419,7 +421,7 @@ const s = {
     fontWeight: 600,
   },
   overdueBar: {
-    backgroundColor: '#1C0A0A',
+    backgroundColor: 'var(--overdue-bg)',
     border: '1px solid #F8514955',
     borderRadius: '6px',
     padding: '8px 12px',
@@ -430,7 +432,7 @@ const s = {
   description: {
     margin: '0 0 20px',
     fontSize: '0.875rem',
-    color: '#C9D1D9',
+    color: 'var(--text-body)',
     lineHeight: 1.65,
   },
   actions: {
@@ -443,28 +445,28 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '7px',
-    backgroundColor: '#161B22',
-    color: '#E6EDF3',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '9px 16px',
     fontSize: '0.83rem',
     fontWeight: 500,
     fontFamily: "'Inter', system-ui, sans-serif",
-    transition: 'transform .15s, box-shadow .15s, opacity .15s',
+    transition: 'transform .15s, box-shadow .15s, opacity .15s, background-color 0.25s ease',
   },
   spinner: {
     display: 'inline-block',
     width: '12px',
     height: '12px',
-    border: '2px solid #30363D',
+    border: '2px solid var(--border)',
     borderTopColor: '#58A6FF',
     borderRadius: '50%',
     animation: 'spin .7s linear infinite',
     flexShrink: 0,
   },
   errorBox: {
-    backgroundColor: '#1C0A0A',
+    backgroundColor: 'var(--overdue-bg)',
     border: '1px solid #F85149',
     borderRadius: '6px',
     padding: '10px 14px',
@@ -478,7 +480,7 @@ const s = {
     gap: '2px',
     marginTop: '20px',
     marginBottom: '14px',
-    borderBottom: '1px solid #21262D',
+    borderBottom: '1px solid var(--bg-elevated)',
   },
   tabBtn: {
     background: 'none',
@@ -494,32 +496,34 @@ const s = {
     marginBottom: '-1px',
   },
   notesBlock: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '8px',
     padding: '16px',
     fontSize: '0.83rem',
-    color: '#C9D1D9',
+    color: 'var(--text-body)',
     lineHeight: 1.75,
     whiteSpace: 'pre-wrap',
     fontFamily: "'Inter', system-ui, sans-serif",
     overflowX: 'auto',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
 }
 
 const qs = {
   question: {
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '10px',
     padding: '16px',
     marginBottom: '12px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   qText: {
     margin: '0 0 12px',
     fontSize: '0.88rem',
     fontWeight: 500,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
     lineHeight: 1.5,
     display: 'flex',
     gap: '8px',
@@ -569,21 +573,22 @@ const qs = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '6px',
-    backgroundColor: '#161B22',
-    border: '1px solid #30363D',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
     borderRadius: '12px',
     padding: '24px',
     marginTop: '16px',
+    transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
   scoreEmoji: { fontSize: '2rem' },
   scoreNum: {
     fontSize: '1.8rem',
     fontWeight: 800,
-    color: '#E6EDF3',
+    color: 'var(--text-primary)',
   },
   scoreLabel: {
     fontSize: '0.83rem',
-    color: '#8B949E',
+    color: 'var(--text-muted)',
     fontWeight: 500,
   },
 }
