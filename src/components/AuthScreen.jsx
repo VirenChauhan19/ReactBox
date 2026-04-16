@@ -148,15 +148,25 @@ export default function AuthScreen({ googleEnabled, onAuth, onSkip }) {
                 <p style={s.noKeyWarning}>
                   ⚠ <code>VITE_GOOGLE_CLIENT_ID</code> not set in <code>.env</code>
                 </p>
-                <button style={s.skipBtn} onClick={onSkip}>
-                  Continue without Google →
-                </button>
               </>
             )}
 
+            {/* Divider */}
+            <div style={s.orDivider}>
+              <div style={s.orLine} />
+              <span style={s.orText}>or</span>
+              <div style={s.orLine} />
+            </div>
+
+            {/* Guest button — always available */}
+            <button style={s.guestBtn} onClick={onSkip}>
+              <span style={s.guestIcon}>👤</span>
+              Continue as Guest
+            </button>
+
             <p style={s.fine}>
               {googleEnabled
-                ? 'Grants access to create events in your Google Calendar only. No data is stored on any server.'
+                ? 'Google login enables Calendar sync. Guest mode saves data locally only.'
                 : 'Google Calendar sync will be unavailable until a Client ID is configured.'}
             </p>
           </div>
@@ -378,5 +388,46 @@ const s = {
     fontSize:   '0.68rem',
     color:      'var(--border)',
     letterSpacing: '0.06em',
+  },
+
+  orDivider: {
+    display:        'flex',
+    alignItems:     'center',
+    gap:            '10px',
+    margin:         '18px 0',
+  },
+  orLine: {
+    flex:            1,
+    height:          '1px',
+    backgroundColor: 'var(--border)',
+  },
+  orText: {
+    fontSize:   '0.72rem',
+    fontWeight: 600,
+    color:      'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  },
+
+  guestBtn: {
+    display:         'flex',
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             '10px',
+    width:           '100%',
+    padding:         '12px 20px',
+    backgroundColor: 'var(--bg-elevated)',
+    border:          '1px solid var(--border)',
+    borderRadius:    '8px',
+    fontSize:        '0.92rem',
+    fontWeight:      600,
+    color:           'var(--text-primary)',
+    cursor:          'pointer',
+    fontFamily:      "'Inter', 'system-ui', sans-serif",
+    marginBottom:    '18px',
+    transition:      'background-color 0.15s, border-color 0.15s, transform 0.15s',
+  },
+  guestIcon: {
+    fontSize: '1rem',
   },
 }

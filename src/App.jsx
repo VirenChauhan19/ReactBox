@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Browser from './components/Browser.jsx'
 import DetailView from './components/DetailView.jsx'
 import Controller from './components/Controller.jsx'
@@ -10,8 +10,45 @@ import ChapterNotes from './components/ChapterNotes.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
 
 const INITIAL_STATE = {
-  selectedAssignment: '',
-  assignments: [],
+  selectedAssignment: 'asgn-01',
+  assignments: [
+    {
+      id: 'asgn-01',
+      course: 'AI 201',
+      title: 'Project 2',
+      dueDate: '2026-04-29',
+      weight: 25,
+      status: 'in-progress',
+      description: 'Three-panel React app with shared state',
+      notes: '',
+      quiz: [],
+      urgency: 'high',
+    },
+    {
+      id: 'asgn-02',
+      course: 'GAME 366',
+      title: 'Ice Surface Material',
+      dueDate: '2026-05-01',
+      weight: 20,
+      status: 'not-started',
+      description: 'UE5 Substrate material with Niagara',
+      notes: '',
+      quiz: [],
+      urgency: 'high',
+    },
+    {
+      id: 'asgn-03',
+      course: 'ITGM 336',
+      title: 'Modular Kit Final',
+      dueDate: '2026-05-10',
+      weight: 30,
+      status: 'not-started',
+      description: 'Medieval dungeon modular kit',
+      notes: '',
+      quiz: [],
+      urgency: 'medium',
+    },
+  ],
   filterCourse: 'all',
   filterStatus: 'all',
   sortBy: 'dueDate',
@@ -21,6 +58,7 @@ export default function App({ googleEnabled = true }) {
   const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
   const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters'
   const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
+  const [isDemoData, setIsDemoData] = useState(true)
 
   // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
   useEffect(() => {
@@ -39,6 +77,15 @@ export default function App({ googleEnabled = true }) {
   const [filterCourse,       setFilterCourse]       = useState(INITIAL_STATE.filterCourse)
   const [filterStatus,       setFilterStatus]       = useState(INITIAL_STATE.filterStatus)
   const [sortBy,             setSortBy]             = useState(INITIAL_STATE.sortBy)
+
+  // ── Persist assignments to localStorage keyed by Google account ───────────────
+  const storageKey = googleProfile ? `scc_data_${googleProfile.sub}` : null
+
+  // Save whenever assignments change (only for logged-in users with real data)
+  useEffect(() => {
+    if (!storageKey || isDemoData) return
+    localStorage.setItem(storageKey, JSON.stringify(assignments))
+  }, [assignments, storageKey, isDemoData])
 
   // ── Sync to Google Calendar whenever assignments change ───────────────────────
   const syncTimeout = useRef(null)
@@ -64,10 +111,74 @@ export default function App({ googleEnabled = true }) {
   function handleAuth(token, profile) {
     setGoogleToken(token)
     setGoogleProfile(profile)
+
+    // Restore saved assignments for this Google account
+    const key = `scc_data_${profile.sub}`
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAssignments(parsed)
+          setSelectedAssignment(parsed[0].id)
+          setIsDemoData(false)
+          setScreen('dashboard') // skip upload screen — data already exists
+          return
+        }
+      } catch { /* ignore corrupt data */ }
+    }
+
     setScreen('upload')
   }
 
-  const [showUpload, setShowUpload] = useState(false)
+  const [showUpload,   setShowUpload]   = useState(false)
+  const [showProfile,  setShowProfile]  = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const profileRef = useRef(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!showProfile) return
+    function handleClick(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setShowProfile(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showProfile])
+
+  function handleGuestLogin() {
+    const guestProfile = { name: 'Guest', email: 'No account — local only', picture: null, sub: 'guest' }
+    setGoogleProfile(guestProfile)
+
+    // Restore any previously saved guest data
+    const key = 'scc_data_guest'
+    const saved = localStorage.getItem(key)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAssignments(parsed)
+          setSelectedAssignment(parsed[0].id)
+          setIsDemoData(false)
+          setScreen('dashboard')
+          return
+        }
+      } catch { /* ignore */ }
+    }
+    setScreen('upload')
+  }
+
+  function handleSignOut() {
+    setShowProfile(false)
+    setGoogleToken(null)
+    setGoogleProfile(null)
+    setAssignments(INITIAL_STATE.assignments)
+    setSelectedAssignment(INITIAL_STATE.selectedAssignment)
+    setIsDemoData(true)
+    setScreen('auth')
+  }
 
   // ── Upload callback ───────────────────────────────────────────────────────────
   function handleAssignmentsLoaded(newAssignments) {
@@ -75,6 +186,11 @@ export default function App({ googleEnabled = true }) {
     setSelectedAssignment(newAssignments[0]?.id ?? '')
     setScreen('dashboard')
     setShowUpload(false)
+    setIsDemoData(false)
+    // Immediately persist for logged-in users
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify(newAssignments))
+    }
   }
 
   // ── Assignment mutations ──────────────────────────────────────────────────────
@@ -108,7 +224,7 @@ export default function App({ googleEnabled = true }) {
       <AuthScreen
         googleEnabled={googleEnabled}
         onAuth={handleAuth}
-        onSkip={() => setScreen('upload')}
+        onSkip={handleGuestLogin}
       />
     )
   }
@@ -180,15 +296,63 @@ export default function App({ googleEnabled = true }) {
             + Upload
           </button>
           {googleProfile && (
-            <img
-              src={googleProfile.picture}
-              alt={googleProfile.name}
-              title={googleProfile.name}
-              style={styles.avatar}
-            />
+            <div ref={profileRef} style={{ position: 'relative' }}>
+              <button
+                style={styles.avatarBtn}
+                onClick={() => setShowProfile(v => !v)}
+                title="Account"
+              >
+                {googleProfile.picture
+                  ? <img src={googleProfile.picture} alt={googleProfile.name} style={styles.avatar} />
+                  : <div style={styles.avatarGuest}>{googleProfile.name[0]}</div>
+                }
+                <span style={styles.avatarChevron}>{showProfile ? '▲' : '▼'}</span>
+              </button>
+
+              {showProfile && (
+                <div style={styles.dropdown} className="animate-slideDown">
+                  {/* User info */}
+                  <div style={styles.dropdownHeader}>
+                    {googleProfile.picture
+                      ? <img src={googleProfile.picture} alt="" style={styles.dropdownAvatar} />
+                      : <div style={{ ...styles.dropdownAvatar, backgroundColor: '#58A6FF22', border: '2px solid #58A6FF55', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 700, color: '#58A6FF' }}>{googleProfile.name[0]}</div>
+                    }
+                    <div style={styles.dropdownUserInfo}>
+                      <p style={styles.dropdownName}>{googleProfile.name}</p>
+                      <p style={styles.dropdownEmail}>{googleProfile.email}</p>
+                    </div>
+                  </div>
+
+                  <div style={styles.dropdownDivider} />
+
+                  {/* Menu items */}
+                  <DropdownItem icon="⚙" label="Settings" onClick={() => { setShowProfile(false); setShowSettings(true) }} />
+                  <DropdownItem icon="+ " label="Upload Syllabus" onClick={() => { setShowProfile(false); setShowUpload(true) }} />
+                  <DropdownItem icon="🗑" label="Clear My Data" danger onClick={() => {
+                    if (storageKey) localStorage.removeItem(storageKey)
+                    setAssignments(INITIAL_STATE.assignments)
+                    setSelectedAssignment(INITIAL_STATE.selectedAssignment)
+                    setIsDemoData(true)
+                    setShowProfile(false)
+                  }} />
+
+                  <div style={styles.dropdownDivider} />
+
+                  <DropdownItem icon="⎋" label="Sign Out" danger onClick={handleSignOut} />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
+
+      {/* ── Demo banner ──────────────────────────────────────────────── */}
+      {isDemoData && (
+        <div style={styles.demoBanner}>
+          <span>🧪 <strong>Demo data</strong> — these are sample assignments. Upload your syllabus to load your real ones.</span>
+          <button style={styles.demoDismiss} onClick={() => setIsDemoData(false)}>✕</button>
+        </div>
+      )}
 
       {/* ── Views ────────────────────────────────────────────────────── */}
       {view === 'dashboard' ? (
@@ -270,7 +434,124 @@ export default function App({ googleEnabled = true }) {
         assignments={assignments}
         userName={googleProfile?.name ?? null}
       />
+
+      {/* ── Settings modal ───────────────────────────────────────── */}
+      {showSettings && (
+        <div style={styles.modalBackdrop} onClick={() => setShowSettings(false)}>
+          <div style={styles.modalCard} onClick={e => e.stopPropagation()} className="animate-popIn">
+            <div style={styles.modalHeader}>
+              <p style={styles.modalTitle}>⚙ Settings</p>
+              <button style={styles.modalClose} onClick={() => setShowSettings(false)}>✕</button>
+            </div>
+
+            {/* Appearance */}
+            <p style={styles.settingsSection}>Appearance</p>
+            <div style={styles.settingsRow}>
+              <div>
+                <p style={styles.settingsLabel}>Theme</p>
+                <p style={styles.settingsSub}>Switch between dark and light mode</p>
+              </div>
+              <div style={styles.themeToggleGroup}>
+                {['dark', 'light'].map(t => (
+                  <button
+                    key={t}
+                    style={{
+                      ...styles.themeOption,
+                      backgroundColor: theme === t ? '#58A6FF' : 'var(--bg-elevated)',
+                      color: theme === t ? '#fff' : 'var(--text-muted)',
+                      border: theme === t ? '1px solid #58A6FF' : '1px solid var(--border)',
+                    }}
+                    onClick={() => setTheme(t)}
+                  >
+                    {t === 'dark' ? '☾ Dark' : '☀ Light'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.modalDivider} />
+
+            {/* Account */}
+            <p style={styles.settingsSection}>Account</p>
+            {googleProfile && (
+              <div style={styles.settingsRow}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {googleProfile.picture
+                    ? <img src={googleProfile.picture} alt="" style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid var(--border)' }} />
+                    : <div style={{ width: 40, height: 40, borderRadius: '50%', border: '2px solid #58A6FF55', backgroundColor: '#58A6FF22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', fontWeight: 700, color: '#58A6FF' }}>{googleProfile.name[0]}</div>
+                  }
+                  <div>
+                    <p style={styles.settingsLabel}>{googleProfile.name}</p>
+                    <p style={styles.settingsSub}>{googleProfile.email}</p>
+                  </div>
+                </div>
+                <button style={styles.signOutBtn} onClick={handleSignOut}>Sign Out</button>
+              </div>
+            )}
+
+            <div style={styles.modalDivider} />
+
+            {/* Data */}
+            <p style={styles.settingsSection}>Data</p>
+            <div style={styles.settingsRow}>
+              <div>
+                <p style={styles.settingsLabel}>Saved assignments</p>
+                <p style={styles.settingsSub}>{assignments.length} assignment{assignments.length !== 1 ? 's' : ''} stored{isDemoData ? ' (demo)' : ' locally'}</p>
+              </div>
+              <button style={styles.dangerBtn} onClick={() => {
+                if (storageKey) localStorage.removeItem(storageKey)
+                setAssignments(INITIAL_STATE.assignments)
+                setSelectedAssignment(INITIAL_STATE.selectedAssignment)
+                setIsDemoData(true)
+                setShowSettings(false)
+              }}>
+                Clear Data
+              </button>
+            </div>
+
+            <div style={styles.modalDivider} />
+
+            {/* About */}
+            <p style={styles.settingsSection}>About</p>
+            <div style={{ padding: '0 0 4px' }}>
+              <p style={styles.settingsLabel}>Study Command Center</p>
+              <p style={styles.settingsSub}>v1.0 · Powered by Gemini · Built with React + Vite</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+function DropdownItem({ icon, label, onClick, danger }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        width: '100%',
+        padding: '9px 14px',
+        background: hov ? 'var(--bg-elevated)' : 'none',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '0.83rem',
+        fontWeight: 500,
+        color: danger ? '#F85149' : 'var(--text-primary)',
+        cursor: 'pointer',
+        fontFamily: "'Inter', system-ui, sans-serif",
+        textAlign: 'left',
+        transition: 'background 0.12s',
+      }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      onClick={onClick}
+    >
+      <span style={{ fontSize: '0.9rem', width: '16px', textAlign: 'center' }}>{icon}</span>
+      {label}
+    </button>
   )
 }
 
@@ -397,5 +678,236 @@ const styles = {
     display: 'flex',
     flex: 1,
     overflow: 'hidden',
+  },
+  demoBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '8px 20px',
+    backgroundColor: '#E3B34118',
+    borderBottom: '1px solid #E3B34144',
+    fontSize: '0.8rem',
+    color: '#E3B341',
+    flexShrink: 0,
+  },
+  demoDismiss: {
+    background: 'none',
+    border: 'none',
+    color: '#E3B341',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    opacity: 0.7,
+    padding: '2px 6px',
+    flexShrink: 0,
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+
+  // ── Avatar / dropdown ──────────────────────────────────────────────────────
+  avatarBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    background: 'none',
+    border: '1px solid var(--border)',
+    borderRadius: '20px',
+    padding: '3px 8px 3px 3px',
+    cursor: 'pointer',
+    transition: 'background-color 0.15s, border-color 0.15s',
+  },
+  avatar: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    display: 'block',
+  },
+  avatarGuest: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    backgroundColor: '#58A6FF22',
+    border: '1px solid #58A6FF55',
+    color: '#58A6FF',
+    fontSize: '0.8rem',
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+  avatarChevron: {
+    fontSize: '0.5rem',
+    color: 'var(--text-muted)',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 'calc(100% + 8px)',
+    right: 0,
+    width: '240px',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
+    padding: '8px',
+    zIndex: 500,
+  },
+  dropdownHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 10px 10px',
+  },
+  dropdownAvatar: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '50%',
+    border: '2px solid var(--border)',
+    flexShrink: 0,
+  },
+  dropdownUserInfo: {
+    minWidth: 0,
+  },
+  dropdownName: {
+    margin: 0,
+    fontSize: '0.85rem',
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  dropdownEmail: {
+    margin: 0,
+    fontSize: '0.7rem',
+    color: 'var(--text-muted)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  dropdownDivider: {
+    height: '1px',
+    backgroundColor: 'var(--border)',
+    margin: '6px 0',
+  },
+
+  // ── Settings modal ─────────────────────────────────────────────────────────
+  modalBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    backdropFilter: 'blur(4px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 600,
+    padding: '24px',
+  },
+  modalCard: {
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '16px',
+    padding: '28px',
+    width: '100%',
+    maxWidth: '460px',
+    boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '22px',
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '1rem',
+    fontWeight: 700,
+    color: 'var(--text-primary)',
+  },
+  modalClose: {
+    background: 'none',
+    border: '1px solid var(--border)',
+    borderRadius: '6px',
+    color: 'var(--text-muted)',
+    width: '28px',
+    height: '28px',
+    cursor: 'pointer',
+    fontSize: '0.8rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: "'Inter', system-ui, sans-serif",
+  },
+  modalDivider: {
+    height: '1px',
+    backgroundColor: 'var(--border)',
+    margin: '16px 0',
+  },
+  settingsSection: {
+    margin: '0 0 12px',
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.1em',
+  },
+  settingsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px',
+    marginBottom: '4px',
+  },
+  settingsLabel: {
+    margin: '0 0 2px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    color: 'var(--text-primary)',
+  },
+  settingsSub: {
+    margin: 0,
+    fontSize: '0.72rem',
+    color: 'var(--text-muted)',
+  },
+  themeToggleGroup: {
+    display: 'flex',
+    gap: '6px',
+    flexShrink: 0,
+  },
+  themeOption: {
+    padding: '6px 12px',
+    borderRadius: '8px',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    transition: 'all 0.15s ease',
+  },
+  signOutBtn: {
+    backgroundColor: 'transparent',
+    border: '1px solid #F85149',
+    borderRadius: '7px',
+    color: '#F85149',
+    padding: '7px 14px',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    flexShrink: 0,
+    transition: 'background-color 0.15s',
+  },
+  dangerBtn: {
+    backgroundColor: 'transparent',
+    border: '1px solid var(--border)',
+    borderRadius: '7px',
+    color: 'var(--text-muted)',
+    padding: '7px 14px',
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    flexShrink: 0,
+    transition: 'border-color 0.15s, color 0.15s',
   },
 }
