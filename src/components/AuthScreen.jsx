@@ -243,17 +243,6 @@ export default function AuthScreen({ googleEnabled, onAuth, onSkip }) {
             </div>
           </div>
 
-          {/* ── Tech badges ────────────────────────────────────────── */}
-          <div style={{
-            ...s.techRow,
-            opacity: stage >= 4 ? 1 : 0,
-            transition: 'opacity 0.8s ease 0.6s',
-          }}>
-            {['React 19', 'Vite 8', 'Gemini 2.5', 'Google OAuth', 'pdfjs-dist'].map((tech, i) => (
-              <span key={i} style={s.techBadge}>{tech}</span>
-            ))}
-          </div>
-
         </div>
 
         <span style={s.buildTag}>v1.0 · Study Command Center</span>

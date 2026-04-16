@@ -138,6 +138,7 @@ const STATUS_OPTIONS = [
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function Controller({
   assignments,
+  filteredAssignments,
   filterCourse,
   filterStatus,
   sortBy,
@@ -151,12 +152,15 @@ export default function Controller({
   const [justDone,  setJustDone]  = useState(false)
   const burstTimer = useRef(null)
 
+  // Course dropdown uses all assignments; progress uses only the filtered set
+  const scope         = filteredAssignments ?? assignments
   const uniqueCourses = [...new Set(assignments.map((a) => a.course))]
-  const selected      = assignments.find((a) => a.id === selectedAssignment)
+  const selected      = scope.find((a) => a.id === selectedAssignment)
+                     ?? assignments.find((a) => a.id === selectedAssignment)
   const alreadyDone   = selected?.status === 'completed'
 
-  const done = assignments.filter((a) => a.status === 'completed').length
-  const pct  = assignments.length ? Math.round((done / assignments.length) * 100) : 0
+  const done = scope.filter((a) => a.status === 'completed').length
+  const pct  = scope.length ? Math.round((done / scope.length) * 100) : 0
 
   function handleComplete() {
     if (!selectedAssignment || alreadyDone) return
@@ -179,7 +183,7 @@ export default function Controller({
         <ProgressRing pct={pct} />
         <div style={s.ringMeta}>
           <span style={s.ringDone}>{done} done</span>
-          <span style={s.ringTotal}>of {assignments.length}</span>
+          <span style={s.ringTotal}>of {scope.length}</span>
         </div>
       </div>
 

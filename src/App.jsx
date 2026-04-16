@@ -376,6 +376,7 @@ export default function App({ googleEnabled = true }) {
           <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right">
             <Controller
               assignments={assignments}
+              filteredAssignments={visibleAssignments}
               filterCourse={filterCourse}
               filterStatus={filterStatus}
               sortBy={sortBy}
@@ -405,6 +406,7 @@ export default function App({ googleEnabled = true }) {
             <div style={{ borderTop: '1px solid var(--border)' }}>
               <Controller
                 assignments={assignments}
+                filteredAssignments={visibleAssignments}
                 filterCourse={filterCourse}
                 filterStatus={filterStatus}
                 sortBy={sortBy}
