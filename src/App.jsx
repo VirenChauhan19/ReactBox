@@ -78,6 +78,27 @@ export default function App({ googleEnabled = true }) {
   const [filterStatus,       setFilterStatus]       = useState(INITIAL_STATE.filterStatus)
   const [sortBy,             setSortBy]             = useState(INITIAL_STATE.sortBy)
 
+  // ── Custom calendar events ────────────────────────────────────────────────
+  const [customEvents, setCustomEvents] = useState(() => {
+    // Try to restore from localStorage on first render
+    try {
+      const raw = localStorage.getItem('scc_custom_events')
+      return raw ? JSON.parse(raw) : []
+    } catch { return [] }
+  })
+
+  useEffect(() => {
+    localStorage.setItem('scc_custom_events', JSON.stringify(customEvents))
+  }, [customEvents])
+
+  function handleAddCustomEvent(event) {
+    setCustomEvents((prev) => [...prev, event])
+  }
+
+  function handleDeleteCustomEvent(id) {
+    setCustomEvents((prev) => prev.filter((e) => e.id !== id))
+  }
+
   // ── Persist assignments to localStorage keyed by Google account ───────────────
   const storageKey = googleProfile ? `scc_data_${googleProfile.sub}` : null
 
@@ -395,6 +416,9 @@ export default function App({ googleEnabled = true }) {
               assignments={visibleAssignments}
               selectedAssignment={selectedAssignment}
               onSelect={setSelectedAssignment}
+              customEvents={customEvents}
+              onAddCustomEvent={handleAddCustomEvent}
+              onDeleteCustomEvent={handleDeleteCustomEvent}
             />
           </div>
           <div style={styles.calSide}>
