@@ -13,7 +13,8 @@
       "Bash(curl -s https://api.github.com/repos/actions/deploy-pages/releases/latest)",
       "Bash(npm run *)",
       "WebFetch(domain:onetimetable.org)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBapuDutqeWEvyW3b4AbMkC_0hfgl7dfoY\" -X POST -H \"Content-Type: application/json\" -d \"{\\\\\"contents\\\\\":[{\\\\\"parts\\\\\":[{\\\\\"text\\\\\":\\\\\"hi\\\\\"}]}]}\")"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBapuDutqeWEvyW3b4AbMkC_0hfgl7dfoY\" -X POST -H \"Content-Type: application/json\" -d \"{\\\\\"contents\\\\\":[{\\\\\"parts\\\\\":[{\\\\\"text\\\\\":\\\\\"hi\\\\\"}]}]}\")",
+      "Bash(curl -s http://localhost:5173)"
     ]
   }
 }
