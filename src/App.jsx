@@ -6,6 +6,7 @@ import UploadScreen from './components/UploadScreen.jsx'
 import CalendarView from './components/CalendarView.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
 import ChatBot from './components/ChatBot.jsx'
+import ChapterNotes from './components/ChapterNotes.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
 
 const INITIAL_STATE = {
@@ -55,7 +56,7 @@ const INITIAL_STATE = {
 
 export default function App({ googleEnabled = true }) {
   const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
-  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar'
+  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters'
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   const [googleToken,  setGoogleToken]  = useState(null)
@@ -165,14 +166,20 @@ export default function App({ googleEnabled = true }) {
         </div>
 
         <div style={styles.tabs}>
-          {[{ id: 'dashboard', label: '⊞ Dashboard' }, { id: 'calendar', label: '📅 Calendar' }].map(({ id, label }) => (
+          {[
+            { id: 'dashboard', label: '⊞ Dashboard' },
+            { id: 'calendar',  label: '📅 Calendar'  },
+            { id: 'chapters',  label: '📚 Chapters'  },
+          ].map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setView(id)}
               style={{
                 ...styles.tab,
                 color:           view === id ? '#E6EDF3' : '#8B949E',
-                borderBottom:    view === id ? '2px solid #58A6FF' : '2px solid transparent',
+                borderBottom:    view === id
+                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : '#58A6FF'}`
+                  : '2px solid transparent',
                 backgroundColor: view === id ? '#21262D' : 'transparent',
               }}
             >
@@ -230,7 +237,7 @@ export default function App({ googleEnabled = true }) {
             />
           </div>
         </div>
-      ) : (
+      ) : view === 'calendar' ? (
         <div key="calendar" style={styles.calLayout} className="animate-fadeIn">
           <div style={{ flex: 1, minWidth: 0 }}>
             <CalendarView
@@ -259,6 +266,10 @@ export default function App({ googleEnabled = true }) {
               />
             </div>
           </div>
+        </div>
+      ) : (
+        <div key="chapters" style={styles.chaptersLayout} className="animate-fadeIn">
+          <ChapterNotes />
         </div>
       )}
 
@@ -382,5 +393,10 @@ const styles = {
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
+  },
+  chaptersLayout: {
+    display: 'flex',
+    flex: 1,
+    overflow: 'hidden',
   },
 }

@@ -4,7 +4,56 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Study Command Center</title>
-    <script type="module" crossorigin src="/ReactBox/assets/index-BvMs2EdC.js"></script>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body { margin: 0; background: #0D1117; }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+      }
+      @keyframes popIn {
+        0%   { opacity: 0; transform: scale(0.94); }
+        70%  { transform: scale(1.03); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes slideUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes urgentPulse {
+        0%, 100% { box-shadow: 0 0 0 2px #F8514933, 0 0 8px #F8514922; }
+        50%      { box-shadow: 0 0 0 3px #F8514966, 0 0 18px #F8514944; }
+      }
+      @keyframes choiceReveal {
+        from { opacity: 0.4; transform: translateX(-4px); }
+        to   { opacity: 1;   transform: translateX(0); }
+      }
+      @keyframes cardEnterAnim {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+
+      .animate-fadeIn    { animation: fadeIn .25s ease both; }
+      .animate-popIn     { animation: popIn .3s cubic-bezier(.16,1,.3,1) both; }
+      .animate-slideUp   { animation: slideUp .3s ease both; }
+      .animate-slideDown { animation: slideDown .25s ease both; }
+
+      .card-enter {
+        animation: cardEnterAnim .28s ease both;
+        animation-delay: calc(var(--i, 0) * 45ms);
+        opacity: 0;
+        animation-fill-mode: both;
+      }
+    </style>
+    <script type="module" crossorigin src="/ReactBox/assets/index-K-izUiPr.js"></script>
     <link rel="stylesheet" crossorigin href="/ReactBox/assets/index-CNZMmqXq.css">
   </head>
   <body>
