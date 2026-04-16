@@ -31,21 +31,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify API key is set
+      - name: Verify secrets are set
         run: |
           if [ -z "$VITE_GEMINI_API_KEY" ]; then
             echo "::error::VITE_GEMINI_API_KEY secret is not set. Add it in Settings → Secrets and variables → Actions."
             exit 1
           else
-            echo "API key is present (${#VITE_GEMINI_API_KEY} chars)"
+            echo "VITE_GEMINI_API_KEY is present (${#VITE_GEMINI_API_KEY} chars)"
+          fi
+          if [ -z "$VITE_GOOGLE_CLIENT_ID" ]; then
+            echo "::error::VITE_GOOGLE_CLIENT_ID secret is not set. Add it in Settings → Secrets and variables → Actions."
+            exit 1
+          else
+            echo "VITE_GOOGLE_CLIENT_ID is present (${#VITE_GOOGLE_CLIENT_ID} chars)"
           fi
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Build
         run: npm run build
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
