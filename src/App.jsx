@@ -246,7 +246,7 @@ export default function App({ googleEnabled = true }) {
       {/* ── Top nav bar ──────────────────────────────────────────────── */}
       <div style={styles.topBar}>
         <div style={styles.brand}>
-          <span style={styles.brandDot} />
+          <span style={styles.brandDot} className="brand-dot-pulse" />
           <span style={styles.brandText}>Study Command Center</span>
         </div>
 
@@ -258,6 +258,8 @@ export default function App({ googleEnabled = true }) {
           ].map(({ id, label }) => (
             <button
               key={id}
+              className="nav-tab"
+              data-active={view === id ? 'true' : 'false'}
               onClick={() => setView(id)}
               style={{
                 ...styles.tab,
@@ -356,22 +358,22 @@ export default function App({ googleEnabled = true }) {
 
       {/* ── Views ────────────────────────────────────────────────────── */}
       {view === 'dashboard' ? (
-        <div key="dashboard" style={styles.layout} className="animate-fadeIn">
-          <div style={styles.panel}>
+        <div key="dashboard" style={styles.layout}>
+          <div style={{ ...styles.panel, '--pd': '0ms' }} className="panel-from-left">
             <Browser
               assignments={visibleAssignments}
               selectedAssignment={selectedAssignment}
               onSelect={setSelectedAssignment}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)' }}>
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '60ms' }} className="panel-from-center">
             <DetailView
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
               onQuizGenerated={handleQuizGenerated}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)' }}>
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right">
             <Controller
               assignments={assignments}
               filterCourse={filterCourse}

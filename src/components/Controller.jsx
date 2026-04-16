@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 
 const R   = 36
 const CIRC = 2 * Math.PI * R
@@ -59,6 +59,35 @@ const cf = {
 
 // ── Progress ring ───────────────────────────────────────────────────────────
 function ProgressRing({ pct }) {
+  const [displayed, setDisplayed] = useState(0)
+  const [bump, setBump] = useState(false)
+  const prevPct = useRef(0)
+
+  useEffect(() => {
+    if (pct === prevPct.current) return
+    prevPct.current = pct
+
+    // Animate the number up/down
+    const start     = displayed
+    const end       = pct
+    const duration  = 600
+    const startTime = performance.now()
+
+    function tick(now) {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // ease-out-expo
+      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
+      setDisplayed(Math.round(start + (end - start) * eased))
+      if (progress < 1) requestAnimationFrame(tick)
+      else {
+        setBump(true)
+        setTimeout(() => setBump(false), 400)
+      }
+    }
+    requestAnimationFrame(tick)
+  }, [pct])
+
   const offset = CIRC * (1 - pct / 100)
   const color  = pct === 100 ? '#3FB950' : pct > 50 ? '#58A6FF' : '#E3B341'
 
@@ -85,9 +114,15 @@ function ProgressRing({ pct }) {
       <text
         x={R + 5} y={R + 5}
         textAnchor="middle" dominantBaseline="central"
-        style={{ fill: color, fontSize: '13px', fontWeight: 700, fontFamily: 'Inter, system-ui' }}
+        style={{
+          fill: color,
+          fontSize: '13px',
+          fontWeight: 700,
+          fontFamily: 'Inter, system-ui',
+          animation: bump ? 'countBump .35s cubic-bezier(.16,1,.3,1)' : 'none',
+        }}
       >
-        {pct}%
+        {displayed}%
       </text>
     </svg>
   )
@@ -172,6 +207,8 @@ export default function Controller({
       <div style={s.btnWrap}>
         <Confetti active={burst} />
         <button
+          className="mark-complete-glow"
+          data-done={alreadyDone ? 'true' : 'false'}
           style={{
             ...s.markBtn,
             ...(alreadyDone ? s.markDone : {}),

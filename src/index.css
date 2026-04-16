@@ -145,16 +145,75 @@ select option { background-color: var(--bg-surface); color: var(--text-primary);
   to   { opacity:1; transform: translateY(0); }
 }
 
+/* ── More keyframes ──────────────────────────────────────────────────────── */
+@keyframes panelFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes panelFromLeft {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0);     }
+}
+@keyframes panelFromRight {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+@keyframes dotPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(88,166,255,.5); }
+  60%     { box-shadow: 0 0 0 5px rgba(88,166,255,.0); }
+}
+@keyframes markGlow {
+  0%,100% { box-shadow: 0 2px 8px rgba(46,160,67,.25); }
+  50%     { box-shadow: 0 0 18px rgba(46,160,67,.55), 0 2px 8px rgba(46,160,67,.3); }
+}
+@keyframes tabIndicator {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes countBump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
 /* ── Utility classes ─────────────────────────────────────────────────────── */
-.animate-slideUp  { animation: slideUp  .45s cubic-bezier(.16,1,.3,1) both; }
-.animate-slideDown{ animation: slideDown .35s cubic-bezier(.16,1,.3,1) both; }
-.animate-fadeIn   { animation: fadeIn   .3s ease both; }
-.animate-popIn    { animation: popIn    .4s cubic-bezier(.16,1,.3,1) both; }
+.animate-slideUp   { animation: slideUp    .45s cubic-bezier(.16,1,.3,1) both; }
+.animate-slideDown { animation: slideDown  .35s cubic-bezier(.16,1,.3,1) both; }
+.animate-fadeIn    { animation: panelFadeUp .35s cubic-bezier(.16,1,.3,1) both; }
+.animate-popIn     { animation: popIn       .4s cubic-bezier(.16,1,.3,1) both; }
+
+/* dashboard panel entrance — set style={{ '--pd': delayMs + 'ms' }} */
+.panel-from-left  {
+  animation: panelFromLeft .4s cubic-bezier(.16,1,.3,1) both;
+  animation-delay: var(--pd, 0ms);
+}
+.panel-from-center {
+  animation: panelFadeUp   .4s cubic-bezier(.16,1,.3,1) both;
+  animation-delay: var(--pd, 0ms);
+}
+.panel-from-right {
+  animation: panelFromRight .4s cubic-bezier(.16,1,.3,1) both;
+  animation-delay: var(--pd, 0ms);
+}
 
 /* card entrance stagger — set style={{ '--i': index }} on each card */
 .card-enter {
   animation: slideInLeft .4s cubic-bezier(.16,1,.3,1) both;
   animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* brand dot pulse */
+.brand-dot-pulse {
+  animation: dotPulse 2.4s ease-in-out infinite;
+}
+
+/* mark-complete idle glow */
+.mark-complete-glow:not(:disabled):not([data-done="true"]) {
+  animation: markGlow 2.2s ease-in-out infinite;
+}
+.mark-complete-glow:not(:disabled):not([data-done="true"]):hover {
+  animation: none;
+  box-shadow: 0 0 22px rgba(46,160,67,.65), 0 2px 8px rgba(46,160,67,.3) !important;
 }
 
 /* ── Interactive button hover effects ───────────────────────────────────── */
@@ -166,3 +225,9 @@ button:not(:disabled):active {
 }
 /* Override for elements that already have their own transform transitions */
 .card-enter button:active { transform: none; }
+
+/* ── Nav tab hover ───────────────────────────────────────────────────────── */
+.nav-tab:not([data-active="true"]):hover {
+  color: var(--text-body) !important;
+  background-color: var(--bg-hover) !important;
+}
