@@ -587,7 +587,7 @@ export default function App({ googleEnabled = true }) {
             biometricLoading={biometricLoading}
             assignments={assignments}
             onConnectWhoop={initiateWhoopAuth}
-            onConnectGarmin={initiateGarminAuth}
+            onConnectGarmin={data => { setBiometricData(data); setView('vitals') }}
             onConnectGoogleFit={googleEnabled ? () => googleFitLoginRef.current?.() : null}
             onRefresh={handleRefreshBiometrics}
             onDisconnect={handleDisconnectBiometrics}

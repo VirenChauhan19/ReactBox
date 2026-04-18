@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   computeReadiness, getStudyMode, STUDY_MODE_META, rankAssignments,
-  formatSleepDuration, initiateWhoopAuth,
+  formatSleepDuration,
 } from '../utils/wearableApi.js'
+import ManualBiometricModal from './ManualBiometricModal.jsx'
 
 // ── Animation keyframes ────────────────────────────────────────────────────────
 const CSS = `
@@ -277,10 +278,11 @@ export default function BiometricPanel({
   onDisconnect,
   googleEnabled,
 }) {
-  const [insightText, setInsightText]       = useState('')
-  const [insightLoading, setInsightLoading] = useState(false)
-  const [refreshing, setRefreshing]         = useState(false)
+  const [insightText, setInsightText]             = useState('')
+  const [insightLoading, setInsightLoading]       = useState(false)
+  const [refreshing, setRefreshing]               = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
+  const [showGarminModal, setShowGarminModal]     = useState(false)
   const refreshBtnRef = useRef(null)
 
   const readiness  = computeReadiness(biometricData)
@@ -355,7 +357,7 @@ export default function BiometricPanel({
             <button
               className="bio-connect-btn"
               style={{ ...s.connectBtn, background: 'linear-gradient(135deg, #0A2B4E, #007DC5)', border: '1px solid #007DC566' }}
-              onClick={onConnectGarmin}
+              onClick={() => setShowGarminModal(true)}
             >
               <span style={{ fontSize: '1.3rem' }}>⌚</span>
               <div>
@@ -390,11 +392,19 @@ export default function BiometricPanel({
             Apple Watch users: sync to Google Fit via the Health app. Coros users: sync to Garmin Connect or Whoop first.
           </p>
         </div>
+
+        {showGarminModal && (
+          <ManualBiometricModal
+            onSave={data => { onConnectGarmin?.(data); setShowGarminModal(false) }}
+            onClose={() => setShowGarminModal(false)}
+          />
+        )}
       </div>
     )
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────────
+
   if (biometricLoading) {
     return (
       <div style={s.page}>
@@ -417,7 +427,7 @@ export default function BiometricPanel({
   const sleepSub = biometricData.sleepScore
     ? formatSleepDuration(biometricData.sleepDuration)
     : 'duration'
-  const sourceLabel = { whoop: 'Whoop', garmin: 'Garmin', 'google-fit': 'Google Fit' }[biometricData.source] ?? biometricData.source
+  const sourceLabel = { whoop: 'Whoop', garmin: 'Garmin', 'garmin-manual': 'Garmin', 'google-fit': 'Google Fit' }[biometricData.source] ?? biometricData.source
   const syncedAgo = biometricData.fetchedAt
     ? (() => {
         const mins = Math.round((Date.now() - new Date(biometricData.fetchedAt)) / 60000)
@@ -439,6 +449,13 @@ export default function BiometricPanel({
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {biometricData?.source === 'garmin-manual' && (
+            <button
+              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: '#007DC5', borderColor: '#007DC566' }}
+              onClick={() => setShowGarminModal(true)}
+              title="Update Garmin stats"
+            >⌚ Update</button>
+          )}
           <button
             ref={refreshBtnRef}
             className="bio-refresh-btn"
@@ -605,6 +622,13 @@ export default function BiometricPanel({
           </p>
         )}
       </div>
+
+      {showGarminModal && (
+        <ManualBiometricModal
+          onSave={data => { onConnectGarmin?.(data); setShowGarminModal(false) }}
+          onClose={() => setShowGarminModal(false)}
+        />
+      )}
     </div>
   )
 }
