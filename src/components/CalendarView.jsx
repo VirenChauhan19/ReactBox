@@ -71,6 +71,11 @@ function clickToTime(relY) {
   const mm  = m >= 60 ? 0 : m
   return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`
 }
+function yToTime5(relY) {
+  const totalMin = Math.round((relY / HOUR_H + GRID_START) * 60 / 5) * 5
+  const clamped  = Math.max(GRID_START * 60, Math.min(GRID_END * 60 - 5, totalMin))
+  return `${String(Math.floor(clamped/60)).padStart(2,'0')}:${String(clamped%60).padStart(2,'0')}`
+}
 function getCurrentTimeY() {
   const now = new Date()
   const h = now.getHours(); const m = now.getMinutes()
@@ -150,11 +155,10 @@ export default function CalendarView({
   }
   function switchDay(date) { setDayDate(date); setViewMode('day') }
 
-  function openModal(dateStr, prefillTime = '') {
+  function openModal(dateStr, prefillTime = '', prefillEndTime = '') {
     const [y, m, d] = dateStr.split('-')
     const label = `${MONTHS[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`
     setMTitle(''); setMColor(EVENT_COLORS[0]); setMDesc('')
-    // Round prefill or now to nearest 5 min
     let startSlot = prefillTime
     if (!startSlot) {
       const now = new Date()
@@ -163,8 +167,8 @@ export default function CalendarView({
       startSlot = `${String(Math.floor(rounded/60)).padStart(2,'0')}:${String(rounded%60).padStart(2,'0')}`
     }
     setMTime(startSlot)
-    setMEndTime(addMinutes(startSlot, 60))
-    setMAllDay(!prefillTime)
+    setMEndTime(prefillEndTime || addMinutes(startSlot, 60))
+    setMAllDay(!prefillTime && !prefillEndTime)
     setModal({ dateStr, label })
   }
   function closeModal() { setModal(null) }
@@ -252,7 +256,7 @@ export default function CalendarView({
               customEvts={custByDate[toDateStr(dayDate)]??[]}
               selectedAssignment={selectedAssignment}
               onSelect={onSelect}
-              onAddClick={(time) => openModal(toDateStr(dayDate), time)}
+              onAddClick={(startTime, endTime) => openModal(toDateStr(dayDate), startTime, endTime)}
               onDeleteCustom={onDeleteCustomEvent} />
           )}
         </div>
@@ -482,7 +486,7 @@ function WeekView({ weekDays, todayStr, nowY, byDate, custByDate, selectedAssign
                 date={date} dateStr={ds} isToday={isToday}
                 timedEvts={timedEvts} nowY={nowY}
                 isLast={colIdx===6}
-                onAddClick={(time) => onAddClick(ds, time)}
+                onAddClick={(startTime, endTime) => onAddClick(ds, startTime, endTime)}
                 onDeleteCustom={onDeleteCustom}
               />
             )
@@ -494,119 +498,157 @@ function WeekView({ weekDays, todayStr, nowY, byDate, custByDate, selectedAssign
 }
 
 function WeekTimeCol({ date, dateStr, isToday, timedEvts, nowY, isLast, onAddClick, onDeleteCustom }) {
-  const colRef = useRef(null)
-  const [hovY, setHovY] = useState(null)
-  const [hovEv, setHovEv] = useState(null)
+  const colRef  = useRef(null)
+  const dragRef = useRef(null) // { startY }
+  const [hovY,    setHovY]    = useState(null)
+  const [hovEv,   setHovEv]   = useState(null)
+  const [dragState, setDragState] = useState(null) // { startY, endY }
 
-  function handleMouseMove(e) {
+  const getRelY = useCallback((clientY) => {
     const rect = colRef.current?.getBoundingClientRect()
-    if (!rect) return
-    setHovY(e.clientY - rect.top)
-  }
+    if (!rect) return 0
+    return Math.max(0, Math.min(TOTAL_PX, clientY - rect.top))
+  }, [])
+
+  // Global mousemove/mouseup during drag
+  useEffect(() => {
+    if (!dragState) return
+    function onMove(e) {
+      const y = getRelY(e.clientY)
+      setDragState(d => d ? { ...d, endY: y } : null)
+      setHovY(y)
+    }
+    function onUp(e) {
+      const y = getRelY(e.clientY)
+      setDragState(prev => {
+        if (!prev) return null
+        const dist = Math.abs(y - prev.startY)
+        if (dist > 10) {
+          const topY = Math.min(prev.startY, y)
+          const botY = Math.max(prev.startY, y)
+          onAddClick(yToTime5(topY), yToTime5(botY))
+        }
+        return null
+      })
+      setHovY(null)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [dragState, getRelY, onAddClick])
+
+  const dragTopY = dragState ? Math.min(dragState.startY, dragState.endY) : 0
+  const dragH    = dragState ? Math.abs(dragState.endY - dragState.startY) : 0
+  const isDragging = dragState && dragH > 10
 
   return (
     <div
       ref={colRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => setHovY(null)}
+      onMouseMove={e => !dragState && setHovY(getRelY(e.clientY))}
+      onMouseLeave={() => { if (!dragState) setHovY(null) }}
+      onMouseDown={e => {
+        if (e.button !== 0) return
+        e.preventDefault()
+        const y = getRelY(e.clientY)
+        setDragState({ startY: y, endY: y })
+        setHovY(y)
+      }}
       onClick={e => {
-        const rect = colRef.current?.getBoundingClientRect()
-        if (!rect) return
-        const relY = e.clientY - rect.top
-        onAddClick(clickToTime(relY))
+        // only fire click if it was a true click (not end of drag)
+        if (isDragging) return
+        if (!dragState) {
+          const y = getRelY(e.clientY)
+          onAddClick(yToTime5(y))
+        }
       }}
       style={{
-        position:'relative', height:`${TOTAL_PX}px`, cursor:'pointer',
+        position:'relative', height:`${TOTAL_PX}px`,
+        cursor: isDragging ? 'ns-resize' : 'pointer',
         borderRight: isLast ? 'none' : '1px solid var(--border)',
         backgroundColor: isToday ? 'color-mix(in srgb, #58A6FF 5%, transparent)' : 'transparent',
+        userSelect: 'none',
       }}
     >
       {/* Hour lines */}
       {HOURS_GRID.map(h => (
-        <div key={h} style={{
-          position:'absolute', top:`${(h - GRID_START) * HOUR_H}px`,
-          left:0, right:0, borderTop:'1px solid var(--bg-elevated)',
-          pointerEvents:'none',
-        }} />
+        <div key={h} style={{ position:'absolute', top:`${(h-GRID_START)*HOUR_H}px`, left:0, right:0, borderTop:'1px solid var(--bg-elevated)', pointerEvents:'none' }} />
       ))}
       {/* Half-hour lines */}
       {HOURS_GRID.map(h => (
-        <div key={`h-${h}`} style={{
-          position:'absolute', top:`${(h - GRID_START) * HOUR_H + HOUR_H/2}px`,
-          left:0, right:0, borderTop:'1px dashed var(--bg-elevated)',
-          opacity:0.5, pointerEvents:'none',
-        }} />
+        <div key={`h-${h}`} style={{ position:'absolute', top:`${(h-GRID_START)*HOUR_H+HOUR_H/2}px`, left:0, right:0, borderTop:'1px dashed var(--bg-elevated)', opacity:0.5, pointerEvents:'none' }} />
       ))}
 
-      {/* Hover time indicator */}
-      {hovY !== null && (
+      {/* Drag ghost block */}
+      {isDragging && (
         <div style={{
-          position:'absolute', top:`${hovY}px`, left:0, right:0,
-          borderTop:'1px solid #58A6FF66', pointerEvents:'none', zIndex:1,
+          position:'absolute', top:`${dragTopY}px`, left:'3px', right:'3px',
+          height:`${Math.max(20, dragH)}px`, borderRadius:'7px', zIndex:10,
+          backgroundColor:'#58A6FF33', border:'2px solid #58A6FF',
+          borderLeft:'4px solid #58A6FF',
+          backdropFilter:'blur(2px)',
+          pointerEvents:'none', overflow:'hidden',
+          boxShadow:'0 4px 20px rgba(88,166,255,0.35)',
+          animation: 'none',
         }}>
-          <span style={{
-            position:'absolute', left:'4px', top:'-9px',
-            fontSize:'0.58rem', color:'#58A6FF', fontWeight:600,
-            backgroundColor:'var(--bg-surface)', padding:'0 3px', borderRadius:'3px',
-          }}>
-            {formatTime(clickToTime(hovY))}
+          <div style={{ fontSize:'0.6rem', fontWeight:700, color:'#58A6FF', padding:'3px 5px', lineHeight:1.3 }}>
+            {yToTime5(Math.min(dragState.startY, dragState.endY))} – {yToTime5(Math.max(dragState.startY, dragState.endY))}
+          </div>
+          {dragH > 30 && (
+            <div style={{ fontSize:'0.55rem', color:'#58A6FF', opacity:0.8, paddingLeft:'5px' }}>
+              New event
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Hover time indicator (only when not dragging) */}
+      {hovY !== null && !isDragging && (
+        <div style={{ position:'absolute', top:`${hovY}px`, left:0, right:0, borderTop:'1.5px solid #58A6FF88', pointerEvents:'none', zIndex:1 }}>
+          <span style={{ position:'absolute', left:'4px', top:'-9px', fontSize:'0.58rem', color:'#58A6FF', fontWeight:600, backgroundColor:'var(--bg-surface)', padding:'0 3px', borderRadius:'3px' }}>
+            {formatTime(yToTime5(hovY))}
           </span>
         </div>
       )}
 
-      {/* Current time line (today only) */}
+      {/* Current time line */}
       {isToday && nowY !== null && (
-        <div style={{
-          position:'absolute', top:`${nowY}px`, left:0, right:0,
-          borderTop:'2px solid #F85149', pointerEvents:'none', zIndex:3,
-        }}>
-          <div style={{
-            position:'absolute', left:'-5px', top:'-5px',
-            width:'9px', height:'9px', borderRadius:'50%', backgroundColor:'#F85149',
-          }} />
+        <div style={{ position:'absolute', top:`${nowY}px`, left:0, right:0, borderTop:'2px solid #F85149', pointerEvents:'none', zIndex:3 }}>
+          <div style={{ position:'absolute', left:'-5px', top:'-5px', width:'9px', height:'9px', borderRadius:'50%', backgroundColor:'#F85149' }} />
         </div>
       )}
 
       {/* Timed events */}
       {timedEvts.map(ev => {
-        const y   = timeToY(ev.time)
+        const y = timeToY(ev.time)
         if (y === null) return null
         const dur = ev.duration || 60
         const h   = Math.max(28, (dur / 60) * HOUR_H)
         return (
-          <div
-            key={ev.id}
+          <div key={ev.id}
             onMouseEnter={e => { e.stopPropagation(); setHovEv(ev.id) }}
             onMouseLeave={() => setHovEv(null)}
+            onMouseDown={e => e.stopPropagation()}
             onClick={e => e.stopPropagation()}
             style={{
-              position:'absolute', top:`${y + 2}px`, left:'3px', right:'3px',
-              height:`${h - 4}px`, borderRadius:'6px', zIndex:2,
+              position:'absolute', top:`${y+2}px`, left:'3px', right:'3px',
+              height:`${h-4}px`, borderRadius:'6px', zIndex:2,
               backgroundColor: ev.color+'33', border:`1.5px solid ${ev.color}88`,
-              borderLeft:`3px solid ${ev.color}`,
-              padding:'3px 6px', overflow:'hidden', cursor:'default',
+              borderLeft:`3px solid ${ev.color}`, padding:'3px 6px', overflow:'hidden',
+              cursor:'default',
               boxShadow: hovEv===ev.id ? `0 4px 16px ${ev.color}44` : 'none',
               transition:'box-shadow .15s',
             }}
           >
-            <div style={{ fontSize:'0.65rem', fontWeight:700, color:ev.color, lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {ev.title}
-            </div>
+            <div style={{ fontSize:'0.65rem', fontWeight:700, color:ev.color, lineHeight:1.2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{ev.title}</div>
             {h > 36 && (
               <div style={{ fontSize:'0.57rem', color:ev.color, opacity:0.8, marginTop:'2px' }}>
-                {formatTime(ev.time)}{ev.duration ? ` · ${ev.duration < 60 ? ev.duration+'m' : ev.duration/60+'h'}` : ''}
+                {formatTime(ev.time)}{ev.duration ? ` · ${ev.duration<60 ? ev.duration+'m' : ev.duration/60+'h'}` : ''}
               </div>
             )}
             {hovEv===ev.id && (
-              <div
-                onClick={() => onDeleteCustom?.(ev.id)}
-                style={{
-                  position:'absolute', top:'3px', right:'4px',
-                  fontSize:'0.7rem', fontWeight:700, color:ev.color,
-                  cursor:'pointer', lineHeight:1, opacity:0.9,
-                }}
-                title="Remove"
-              >×</div>
+              <div onClick={() => onDeleteCustom?.(ev.id)}
+                style={{ position:'absolute', top:'3px', right:'4px', fontSize:'0.7rem', fontWeight:700, color:ev.color, cursor:'pointer', lineHeight:1, opacity:0.9 }}
+                title="Remove">×</div>
             )}
           </div>
         )
@@ -623,10 +665,47 @@ function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, 
   const timedEvts  = customEvts.filter(e => e.time)
   const scrollRef  = useRef(null)
   const colRef     = useRef(null)
-  const [hovY, setHovY]   = useState(null)
-  const [hovEv, setHovEv] = useState(null)
+  const [hovY, setHovY]         = useState(null)
+  const [hovEv, setHovEv]       = useState(null)
+  const [dragState, setDragState] = useState(null)
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = HOUR_H }, [])
+
+  const getRelY = useCallback((clientY) => {
+    const rect = colRef.current?.getBoundingClientRect()
+    if (!rect) return 0
+    return Math.max(0, Math.min(TOTAL_PX, clientY - rect.top))
+  }, [])
+
+  useEffect(() => {
+    if (!dragState) return
+    function onMove(e) {
+      const y = getRelY(e.clientY)
+      setDragState(d => d ? { ...d, endY: y } : null)
+      setHovY(y)
+    }
+    function onUp(e) {
+      const y = getRelY(e.clientY)
+      setDragState(prev => {
+        if (!prev) return null
+        const dist = Math.abs(y - prev.startY)
+        if (dist > 10) {
+          const topY = Math.min(prev.startY, y)
+          const botY = Math.max(prev.startY, y)
+          onAddClick(yToTime5(topY), yToTime5(botY))
+        }
+        return null
+      })
+      setHovY(null)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+  }, [dragState, getRelY, onAddClick])
+
+  const dragTopY   = dragState ? Math.min(dragState.startY, dragState.endY) : 0
+  const dragH      = dragState ? Math.abs(dragState.endY - dragState.startY) : 0
+  const isDragging = dragState && dragH > 10
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'calc(100vh - 120px)', overflow:'hidden' }}>
@@ -698,10 +777,20 @@ function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, 
           {/* Events column */}
           <div
             ref={colRef}
-            onMouseMove={e => { const r=colRef.current?.getBoundingClientRect(); r && setHovY(e.clientY-r.top) }}
-            onMouseLeave={() => setHovY(null)}
-            onClick={e => { const r=colRef.current?.getBoundingClientRect(); r && onAddClick(clickToTime(e.clientY-r.top)) }}
-            style={{ position:'relative', height:`${TOTAL_PX}px`, cursor:'pointer' }}
+            onMouseMove={e => { if (!dragState) setHovY(getRelY(e.clientY)) }}
+            onMouseLeave={() => { if (!dragState) setHovY(null) }}
+            onMouseDown={e => {
+              if (e.button !== 0) return
+              e.preventDefault()
+              const y = getRelY(e.clientY)
+              setDragState({ startY: y, endY: y })
+              setHovY(y)
+            }}
+            onClick={e => {
+              if (isDragging) return
+              if (!dragState) onAddClick(yToTime5(getRelY(e.clientY)))
+            }}
+            style={{ position:'relative', height:`${TOTAL_PX}px`, cursor: isDragging ? 'ns-resize' : 'pointer', userSelect:'none' }}
           >
             {HOURS_GRID.map(h => (
               <div key={h} style={{ position:'absolute', top:`${(h-GRID_START)*HOUR_H}px`, left:0, right:0, borderTop:'1px solid var(--bg-elevated)', pointerEvents:'none' }} />
@@ -710,11 +799,28 @@ function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, 
               <div key={`hf-${h}`} style={{ position:'absolute', top:`${(h-GRID_START)*HOUR_H+HOUR_H/2}px`, left:0, right:0, borderTop:'1px dashed var(--bg-elevated)', opacity:0.5, pointerEvents:'none' }} />
             ))}
 
-            {/* Hover line */}
-            {hovY !== null && (
-              <div style={{ position:'absolute', top:`${hovY}px`, left:0, right:0, borderTop:'1px solid #58A6FF55', pointerEvents:'none', zIndex:1 }}>
+            {/* Drag ghost block */}
+            {isDragging && (
+              <div style={{
+                position:'absolute', top:`${dragTopY}px`, left:'8px', right:'8px',
+                height:`${Math.max(20, dragH)}px`, borderRadius:'10px', zIndex:10,
+                backgroundColor:'#58A6FF33', border:'2px solid #58A6FF',
+                borderLeft:'5px solid #58A6FF', padding:'5px 10px',
+                pointerEvents:'none', overflow:'hidden',
+                boxShadow:'0 6px 30px rgba(88,166,255,0.4)',
+              }}>
+                <div style={{ fontSize:'0.72rem', fontWeight:700, color:'#58A6FF', lineHeight:1.3 }}>
+                  {yToTime5(Math.min(dragState.startY, dragState.endY))} – {yToTime5(Math.max(dragState.startY, dragState.endY))}
+                </div>
+                {dragH > 36 && <div style={{ fontSize:'0.62rem', color:'#58A6FF', opacity:0.8, marginTop:'2px' }}>New event</div>}
+              </div>
+            )}
+
+            {/* Hover line (not during drag) */}
+            {hovY !== null && !isDragging && (
+              <div style={{ position:'absolute', top:`${hovY}px`, left:0, right:0, borderTop:'1.5px solid #58A6FF88', pointerEvents:'none', zIndex:1 }}>
                 <span style={{ position:'absolute', left:'8px', top:'-9px', fontSize:'0.6rem', color:'#58A6FF', fontWeight:600, backgroundColor:'var(--bg-surface)', padding:'0 4px', borderRadius:'3px' }}>
-                  {formatTime(clickToTime(hovY))}
+                  {formatTime(yToTime5(hovY))}
                 </span>
               </div>
             )}
@@ -735,6 +841,7 @@ function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, 
                 <div key={ev.id}
                   onMouseEnter={e => { e.stopPropagation(); setHovEv(ev.id) }}
                   onMouseLeave={() => setHovEv(null)}
+                  onMouseDown={e => e.stopPropagation()}
                   onClick={e => e.stopPropagation()}
                   style={{
                     position:'absolute', top:`${y+2}px`, left:'8px', right:'8px', height:`${h-4}px`,

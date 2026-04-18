@@ -23,6 +23,7 @@ import AuthScreen from './components/AuthScreen.jsx'
 import ChatBot from './components/ChatBot.jsx'
 import ChapterNotes from './components/ChapterNotes.jsx'
 import BiometricPanel from './components/BiometricPanel.jsx'
+import FocusHub from './components/FocusHub.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
 import {
   exchangeWhoopCode, fetchWhoopData, fetchGoogleFitData,
@@ -389,6 +390,7 @@ export default function App({ googleEnabled = true }) {
             { id: 'dashboard', label: '⊞ Dashboard' },
             { id: 'calendar',  label: '📅 Calendar'  },
             { id: 'chapters',  label: '📚 Chapters'  },
+            { id: 'focus',     label: '🎯 Focus Hub'  },
             { id: 'vitals',    label: '💓 Vitals',    dotColor: studyMeta?.color },
           ].map(({ id, label, dotColor }) => (
             <button
@@ -400,7 +402,7 @@ export default function App({ googleEnabled = true }) {
                 ...styles.tab,
                 color:           view === id ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottom:    view === id
-                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : id === 'vitals' ? (studyMeta?.color ?? '#F85149') : '#58A6FF'}`
+                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : id === 'focus' ? '#E3B341' : id === 'vitals' ? (studyMeta?.color ?? '#F85149') : '#58A6FF'}`
                   : '2px solid transparent',
                 backgroundColor: view === id ? 'var(--bg-elevated)' : 'transparent',
                 position:        'relative',
@@ -579,6 +581,10 @@ export default function App({ googleEnabled = true }) {
       ) : view === 'chapters' ? (
         <div key="chapters" style={styles.chaptersLayout} className="animate-fadeIn">
           <ChapterNotes />
+        </div>
+      ) : view === 'focus' ? (
+        <div key="focus" style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="animate-fadeIn">
+          <FocusHub />
         </div>
       ) : (
         <div key="vitals" style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="animate-fadeIn">
