@@ -189,87 +189,83 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
 
   const statusColor = STATUS_COLOR[status] ?? '#8B949E'
 
+  // Countdown calc
+  const msUntilDue   = new Date(dueDate + 'T23:59:59').getTime() - Date.now()
+  const daysLeft     = Math.ceil(msUntilDue / 86400000)
+  const dueDateFmt   = new Date(dueDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+  const urgencyColor = isPast ? '#F85149' : daysLeft <= 3 ? '#F85149' : daysLeft <= 7 ? '#E3B341' : '#58A6FF'
+  const countdownNum = isPast ? 'LATE' : daysLeft === 0 ? 'TODAY' : daysLeft === 1 ? '1' : String(daysLeft)
+  const countdownSub = isPast ? 'overdue' : daysLeft === 0 ? '' : daysLeft === 1 ? 'day left' : 'days left'
+
+  const modeColor = { peak: '#3FB950', review: '#E3B341', rest: '#F85149' }[studyMode]
+  const modeIcon  = { peak: '⚡', review: '📖', rest: '😴' }[studyMode]
+
   return (
-    // key={id} causes full remount → triggers entrance animation on each new assignment
-    <div key={id} style={s.container} className="animate-fadeIn">
+    <div key={id} style={{ ...s.container, borderLeft: `3px solid ${urgencyColor}44` }} className="animate-fadeIn">
       <>
         <style>{CSS}</style>
 
-        {/* ── Header ──────────────────────────────────────────── */}
+        {/* ── Course + status ─────────────────────────────────── */}
         <div style={s.header}>
-          <span style={s.course}>{course}</span>
-          <span
-            style={{
-              ...s.statusBadge,
-              backgroundColor: statusColor + '22',
-              color:           statusColor,
-              border:          `1px solid ${statusColor}55`,
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: urgencyColor, boxShadow: `0 0 8px ${urgencyColor}`, flexShrink: 0 }} />
+            <span style={s.course}>{course}</span>
+          </div>
+          <span style={{ ...s.statusBadge, backgroundColor: statusColor + '22', color: statusColor, border: `1px solid ${statusColor}55` }}>
             {STATUS_LABEL[status] ?? status}
           </span>
         </div>
 
-        <h1 style={{
-          ...s.title,
-          textDecoration: status === 'completed' ? 'line-through' : 'none',
-          opacity:        status === 'completed' ? 0.6 : 1,
-        }}>
+        {/* ── Title ───────────────────────────────────────────── */}
+        <h1 style={{ ...s.title, textDecoration: status === 'completed' ? 'line-through' : 'none', opacity: status === 'completed' ? 0.5 : 1 }}>
           {title}
         </h1>
 
-        {/* ── Meta row ────────────────────────────────────────── */}
-        <div style={s.metaRow}>
-          <MetaChip icon="📅" label="Due" value={dueDate} highlight={isPast ? '#F85149' : null} />
-          {weight > 0 && <MetaChip icon="⚖️" label="Weight" value={`${weight}%`} />}
-          {studyMode && (() => {
-            const modeColor = { peak: '#3FB950', review: '#E3B341', rest: '#F85149' }[studyMode]
-            const modeIcon  = { peak: '⚡', review: '📖', rest: '😴' }[studyMode]
-            return (
-              <span style={{
-                display:         'flex',
-                alignItems:      'center',
-                gap:             '4px',
-                fontSize:        '0.72rem',
-                fontWeight:      700,
-                color:           modeColor,
-                backgroundColor: modeColor + '18',
-                border:          `1px solid ${modeColor}44`,
-                borderRadius:    '20px',
-                padding:         '2px 8px',
-              }}>
-                {modeIcon} {studyMode === 'peak' ? 'Peak Focus' : studyMode === 'review' ? 'Review Mode' : 'Rest Mode'}
-              </span>
-            )
-          })()}
+        {/* ── Due date hero + weight row ───────────────────────── */}
+        <div style={s.heroRow}>
+          {/* Due date big card */}
+          <div style={{ ...s.dueCard, borderColor: urgencyColor + '44', background: `linear-gradient(135deg, ${urgencyColor}12 0%, ${urgencyColor}06 100%)` }}>
+            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: urgencyColor, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.8 }}>Due Date</div>
+            <div style={{ fontSize: isPast || daysLeft === 0 ? '1.6rem' : '2.8rem', fontWeight: 900, color: urgencyColor, lineHeight: 1, marginTop: '4px', letterSpacing: '-0.02em' }}>
+              {countdownNum}
+            </div>
+            {countdownSub && <div style={{ fontSize: '0.7rem', color: urgencyColor, opacity: 0.75, fontWeight: 600, marginTop: '2px' }}>{countdownSub}</div>}
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px', fontWeight: 500 }}>{dueDateFmt}</div>
+          </div>
+
+          {/* Weight card */}
+          {weight > 0 && (
+            <div style={s.weightCard}>
+              <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Grade Weight</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1, marginTop: '4px', letterSpacing: '-0.02em' }}>
+                {weight}<span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>%</span>
+              </div>
+              <div style={{ marginTop: '8px', height: '4px', borderRadius: '4px', backgroundColor: 'var(--border)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${weight}%`, borderRadius: '4px', background: `linear-gradient(90deg, #58A6FF, #BC8CFF)`, transition: 'width 1s ease' }} />
+              </div>
+            </div>
+          )}
+
+          {/* Biometric mode badge */}
+          {studyMode && (
+            <div style={{ ...s.weightCard, borderColor: modeColor + '44', background: `linear-gradient(135deg, ${modeColor}12, ${modeColor}06)`, justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: '6px' }}>
+              <div style={{ fontSize: '1.6rem' }}>{modeIcon}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: modeColor }}>{studyMode === 'peak' ? 'Peak Focus' : studyMode === 'review' ? 'Review Mode' : 'Rest Mode'}</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>brain state</div>
+            </div>
+          )}
         </div>
 
-        {isPast && status !== 'completed' && (
-          <div style={s.overdueBar} className="animate-slideDown">
-            ⚠ This assignment is past its due date
-          </div>
-        )}
-
-        <p style={s.description}>{description}</p>
+        {/* ── Description ─────────────────────────────────────── */}
+        <div style={s.descCard}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>Assignment Details</div>
+          <p style={s.description}>{description}</p>
+        </div>
 
         {/* ── Action buttons ──────────────────────────────────── */}
         <div style={s.actions}>
-          <GlowButton
-            label="Generate Notes"
-            icon="📝"
-            loading={notesLoading}
-            disabled={notesLoading || quizLoading}
-            color="#58A6FF"
-            onClick={handleGenerateNotes}
-          />
-          <GlowButton
-            label="Generate Quiz"
-            icon="🎯"
-            loading={quizLoading}
-            disabled={notesLoading || quizLoading}
-            color="#BC8CFF"
-            onClick={handleGenerateQuiz}
-          />
+          <GlowButton label="Generate Notes" icon="📝" loading={notesLoading} disabled={notesLoading || quizLoading} color="#58A6FF" onClick={handleGenerateNotes} />
+          <GlowButton label="Generate Quiz"  icon="🎯" loading={quizLoading}  disabled={notesLoading || quizLoading} color="#BC8CFF" onClick={handleGenerateQuiz}  />
         </div>
 
         {notesError && <ErrorBox msg={notesError} />}
@@ -278,29 +274,16 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         {/* ── Content tabs ────────────────────────────────────── */}
         {(notes || (quiz && quiz.length > 0)) && (
           <div style={s.tabBar}>
-            {notes && (
-              <TabBtn active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>
-                📝 Notes
-              </TabBtn>
-            )}
-            {quiz && quiz.length > 0 && (
-              <TabBtn active={activeTab === 'quiz'} onClick={() => setActiveTab('quiz')}>
-                🎯 Quiz
-              </TabBtn>
-            )}
+            {notes            && <TabBtn active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>📝 Notes</TabBtn>}
+            {quiz?.length > 0 && <TabBtn active={activeTab === 'quiz'}  onClick={() => setActiveTab('quiz')}>🎯 Quiz</TabBtn>}
           </div>
         )}
 
         {activeTab === 'notes' && notes && (
-          <div key="notes" className="animate-fadeIn" style={s.notesBlock}>
-            {notes}
-          </div>
+          <div key="notes" className="animate-fadeIn" style={s.notesBlock}>{notes}</div>
         )}
-
-        {activeTab === 'quiz' && quiz && quiz.length > 0 && (
-          <div key="quiz" className="animate-slideUp">
-            <QuizView questions={quiz} />
-          </div>
+        {activeTab === 'quiz' && quiz?.length > 0 && (
+          <div key="quiz" className="animate-slideUp"><QuizView questions={quiz} /></div>
         )}
       </>
     </div>
@@ -308,40 +291,27 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
-function MetaChip({ icon, label, value, highlight }) {
-  return (
-    <div style={s.metaChip}>
-      <span style={s.metaIcon}>{icon}</span>
-      <div>
-        <p style={s.metaLabel}>{label}</p>
-        <p style={{ ...s.metaValue, color: highlight ?? 'var(--text-primary)' }}>{value}</p>
-      </div>
-    </div>
-  )
-}
-
 function GlowButton({ label, icon, loading, disabled, color, onClick }) {
   const [hov, setHov] = useState(false)
   return (
     <button
       style={{
         ...s.btn,
-        borderColor:  color + '55',
-        boxShadow:    hov ? `0 0 16px ${color}44, 0 2px 8px rgba(0,0,0,.3)` : '0 1px 4px rgba(0,0,0,.2)',
-        transform:    hov ? 'translateY(-2px)' : 'none',
-        opacity:      disabled ? 0.55 : 1,
+        background:   hov && !disabled ? `linear-gradient(135deg, ${color}22, ${color}14)` : 'var(--bg-surface)',
+        borderColor:  hov && !disabled ? color + '88' : color + '44',
+        boxShadow:    hov && !disabled ? `0 0 20px ${color}33, 0 4px 12px rgba(0,0,0,.25)` : '0 1px 4px rgba(0,0,0,.15)',
+        transform:    hov && !disabled ? 'translateY(-2px)' : 'none',
+        opacity:      disabled ? 0.45 : 1,
         cursor:       disabled ? 'default' : 'pointer',
+        color:        hov && !disabled ? color : 'var(--text-primary)',
       }}
       disabled={disabled}
       onClick={onClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      {loading
-        ? <span style={s.spinner} />
-        : <span>{icon}</span>
-      }
-      {loading ? 'Working…' : label}
+      {loading ? <span style={s.spinner} /> : <span style={{ fontSize: '1rem' }}>{icon}</span>}
+      <span style={{ fontWeight: 600 }}>{loading ? 'Working…' : label}</span>
     </button>
   )
 }
@@ -382,12 +352,13 @@ const CSS = `
 const s = {
   container: {
     backgroundColor: 'var(--bg-main)',
-    minHeight: '100vh',
-    padding: '24px 22px',
+    minHeight: '100%',
+    padding: '28px 24px',
     fontFamily: "'Inter', system-ui, sans-serif",
     color: 'var(--text-primary)',
     overflowY: 'auto',
     transition: 'background-color 0.25s ease',
+    boxSizing: 'border-box',
   },
   empty: {
     display: 'flex',
@@ -403,98 +374,102 @@ const s = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '8px',
+    marginBottom: '10px',
   },
   course: {
-    fontSize: '0.7rem',
-    fontWeight: 700,
+    fontSize: '0.68rem',
+    fontWeight: 800,
     color: '#58A6FF',
     textTransform: 'uppercase',
-    letterSpacing: '0.07em',
+    letterSpacing: '0.1em',
   },
   statusBadge: {
-    fontSize: '0.68rem',
+    fontSize: '0.67rem',
     fontWeight: 700,
-    padding: '3px 9px',
+    padding: '3px 10px',
     borderRadius: '99px',
     letterSpacing: '0.04em',
   },
   title: {
-    margin: '0 0 16px',
-    fontSize: '1.35rem',
-    fontWeight: 700,
+    margin: '0 0 20px',
+    fontSize: '1.75rem',
+    fontWeight: 800,
     color: 'var(--text-primary)',
-    lineHeight: 1.3,
+    lineHeight: 1.2,
+    letterSpacing: '-0.02em',
     transition: 'opacity .2s',
   },
-  metaRow: {
+  // New hero layout
+  heroRow: {
     display: 'flex',
     gap: '12px',
+    marginBottom: '18px',
     flexWrap: 'wrap',
-    marginBottom: '14px',
   },
-  metaChip: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    backgroundColor: 'var(--bg-surface)',
+  dueCard: {
+    flex: '0 0 auto',
+    minWidth: '110px',
+    padding: '14px 18px',
+    borderRadius: '14px',
     border: '1px solid var(--border)',
-    borderRadius: '8px',
-    padding: '8px 12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0px',
+    transition: 'border-color 0.25s ease',
+  },
+  weightCard: {
+    flex: '0 0 auto',
+    minWidth: '110px',
+    padding: '14px 18px',
+    borderRadius: '14px',
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--bg-surface)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0px',
     transition: 'background-color 0.25s ease, border-color 0.25s ease',
   },
-  metaIcon: { fontSize: '1rem' },
-  metaLabel: {
-    fontSize: '0.6rem',
-    fontWeight: 600,
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-    marginBottom: '2px',
-  },
-  metaValue: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-  },
-  overdueBar: {
-    backgroundColor: 'var(--overdue-bg)',
-    border: '1px solid #F8514955',
-    borderRadius: '6px',
-    padding: '8px 12px',
-    fontSize: '0.78rem',
-    color: '#F85149',
-    marginBottom: '14px',
+  descCard: {
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
+    padding: '16px 18px',
+    marginBottom: '18px',
+    transition: 'background-color 0.25s ease',
   },
   description: {
-    margin: '0 0 20px',
+    margin: 0,
     fontSize: '0.875rem',
     color: 'var(--text-body)',
-    lineHeight: 1.65,
+    lineHeight: 1.7,
   },
   actions: {
     display: 'flex',
     gap: '10px',
     flexWrap: 'wrap',
-    marginBottom: '10px',
+    marginBottom: '12px',
   },
   btn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '7px',
+    gap: '8px',
     backgroundColor: 'var(--bg-surface)',
     color: 'var(--text-primary)',
     border: '1px solid var(--border)',
-    borderRadius: '8px',
-    padding: '9px 16px',
-    fontSize: '0.83rem',
-    fontWeight: 500,
+    borderRadius: '10px',
+    padding: '11px 18px',
+    fontSize: '0.85rem',
+    fontWeight: 600,
     fontFamily: "'Inter', system-ui, sans-serif",
-    transition: 'transform .15s, box-shadow .15s, opacity .15s, background-color 0.25s ease',
+    transition: 'transform .15s, box-shadow .15s, opacity .15s',
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: '130px',
   },
   spinner: {
     display: 'inline-block',
-    width: '12px',
-    height: '12px',
+    width: '13px',
+    height: '13px',
     border: '2px solid var(--border)',
     borderTopColor: '#58A6FF',
     borderRadius: '50%',
@@ -504,7 +479,7 @@ const s = {
   errorBox: {
     backgroundColor: 'var(--overdue-bg)',
     border: '1px solid #F85149',
-    borderRadius: '6px',
+    borderRadius: '8px',
     padding: '10px 14px',
     fontSize: '0.8rem',
     color: '#F85149',
@@ -516,14 +491,14 @@ const s = {
     gap: '2px',
     marginTop: '20px',
     marginBottom: '14px',
-    borderBottom: '1px solid var(--bg-elevated)',
+    borderBottom: '1px solid var(--border)',
   },
   tabBtn: {
     background: 'none',
     border: 'none',
     borderBottom: '2px solid transparent',
-    padding: '8px 14px',
-    fontSize: '0.83rem',
+    padding: '8px 16px',
+    fontSize: '0.85rem',
     fontWeight: 600,
     cursor: 'pointer',
     fontFamily: "'Inter', system-ui, sans-serif",
@@ -534,11 +509,11 @@ const s = {
   notesBlock: {
     backgroundColor: 'var(--bg-surface)',
     border: '1px solid var(--border)',
-    borderRadius: '8px',
-    padding: '16px',
-    fontSize: '0.83rem',
+    borderRadius: '12px',
+    padding: '18px',
+    fontSize: '0.85rem',
     color: 'var(--text-body)',
-    lineHeight: 1.75,
+    lineHeight: 1.8,
     whiteSpace: 'pre-wrap',
     fontFamily: "'Inter', system-ui, sans-serif",
     overflowX: 'auto',

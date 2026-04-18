@@ -382,15 +382,23 @@ export default function BiometricPanel({
           </div>
 
           <div style={s.deviceRow}>
-            <span style={s.deviceLabel}>Works with</span>
-            {['🍎 Apple Watch', '⌚ Garmin', '⚡ Coros', '💪 Whoop'].map(d => (
-              <span key={d} style={s.deviceChip}>{d}</span>
+            <span style={s.deviceLabel}>Tap to connect</span>
+            {[
+              { label: '🍎 Apple Watch', key: 'apple'  },
+              { label: '⌚ Garmin',       key: 'garmin' },
+              { label: '⚡ Coros',        key: 'coros'  },
+              { label: '💪 Whoop',        key: 'whoop'  },
+              { label: '🔴 Polar',        key: 'polar'  },
+              { label: '📈 Fitbit',       key: 'fitbit' },
+            ].map(({ label, key }) => (
+              <button
+                key={key}
+                className="bio-card-hover"
+                style={{ ...s.deviceChip, cursor: 'pointer', background: 'none', fontFamily: "'Inter', system-ui, sans-serif" }}
+                onClick={() => setManualDevice(key)}
+              >{label}</button>
             ))}
           </div>
-
-          <p style={s.connectNote}>
-            Apple Watch users: sync to Google Fit via the Health app. Coros users: sync to Garmin Connect or Whoop first.
-          </p>
         </div>
 
         {manualDevice && (
