@@ -271,13 +271,16 @@ export default function BiometricPanel({
   biometricLoading,
   assignments,
   onConnectWhoop,
+  onConnectGarmin,
   onConnectGoogleFit,
   onRefresh,
+  onDisconnect,
   googleEnabled,
 }) {
-  const [insightText, setInsightText]   = useState('')
+  const [insightText, setInsightText]       = useState('')
   const [insightLoading, setInsightLoading] = useState(false)
-  const [refreshing, setRefreshing]     = useState(false)
+  const [refreshing, setRefreshing]         = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const refreshBtnRef = useRef(null)
 
   const readiness  = computeReadiness(biometricData)
@@ -349,6 +352,18 @@ export default function BiometricPanel({
               </div>
             </button>
 
+            <button
+              className="bio-connect-btn"
+              style={{ ...s.connectBtn, background: 'linear-gradient(135deg, #0A2B4E, #007DC5)', border: '1px solid #007DC566' }}
+              onClick={onConnectGarmin}
+            >
+              <span style={{ fontSize: '1.3rem' }}>⌚</span>
+              <div>
+                <div style={s.connectBtnLabel}>Connect Garmin</div>
+                <div style={s.connectBtnSub}>Body Battery · HR · Sleep · Stress</div>
+              </div>
+            </button>
+
             {googleEnabled && (
               <button
                 className="bio-connect-btn"
@@ -372,7 +387,7 @@ export default function BiometricPanel({
           </div>
 
           <p style={s.connectNote}>
-            Apple Watch & Garmin users: sync your Health data to Google Fit or Whoop first.
+            Apple Watch users: sync to Google Fit via the Health app. Coros users: sync to Garmin Connect or Whoop first.
           </p>
         </div>
       </div>
@@ -402,7 +417,7 @@ export default function BiometricPanel({
   const sleepSub = biometricData.sleepScore
     ? formatSleepDuration(biometricData.sleepDuration)
     : 'duration'
-  const source = biometricData.source === 'whoop' ? 'Whoop' : 'Google Fit'
+  const sourceLabel = { whoop: 'Whoop', garmin: 'Garmin', 'google-fit': 'Google Fit' }[biometricData.source] ?? biometricData.source
   const syncedAgo = biometricData.fetchedAt
     ? (() => {
         const mins = Math.round((Date.now() - new Date(biometricData.fetchedAt)) / 60000)
@@ -420,7 +435,7 @@ export default function BiometricPanel({
           <span style={{ fontSize: '1.1rem' }}>💓</span>
           <span style={s.headerTitle}>Biometric Readiness</span>
           {syncedAgo && (
-            <span style={s.syncTag}>via {source} · {syncedAgo}</span>
+            <span style={s.syncTag}>via {sourceLabel} · {syncedAgo}</span>
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -432,6 +447,25 @@ export default function BiometricPanel({
             disabled={refreshing}
             title="Refresh biometric data"
           >↻</button>
+          {confirmDisconnect ? (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', animation: 'bioCardIn 0.2s ease both' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Disconnect?</span>
+              <button
+                style={{ ...s.iconBtn, color: '#F85149', borderColor: '#F8514966', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700 }}
+                onClick={() => { onDisconnect?.(); setConfirmDisconnect(false) }}
+              >Yes</button>
+              <button
+                style={{ ...s.iconBtn, padding: '4px 10px', fontSize: '0.78rem' }}
+                onClick={() => setConfirmDisconnect(false)}
+              >No</button>
+            </div>
+          ) : (
+            <button
+              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-muted)' }}
+              onClick={() => setConfirmDisconnect(true)}
+              title={`Disconnect ${sourceLabel}`}
+            >Disconnect</button>
+          )}
         </div>
       </div>
 
@@ -474,6 +508,14 @@ export default function BiometricPanel({
               value={biometricData.strain?.toFixed(1)}
               sub="/ 21"
               color="#E3B341"
+            />
+          )}
+          {biometricData.stressLevel !== null && biometricData.stressLevel !== undefined && (
+            <MetricCard
+              icon="🧠" label="Stress" delay={450}
+              value={biometricData.stressLevel}
+              sub="/ 100"
+              color={biometricData.stressLevel > 66 ? '#F85149' : biometricData.stressLevel > 33 ? '#E3B341' : '#3FB950'}
             />
           )}
         </div>

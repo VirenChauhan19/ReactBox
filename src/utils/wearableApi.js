@@ -106,6 +106,110 @@ export async function fetchWhoopData(accessToken) {
   }
 }
 
+// ── Garmin Connect OAuth (PKCE) ───────────────────────────────────────────────
+const GARMIN_CLIENT_ID = import.meta.env.VITE_GARMIN_CLIENT_ID ?? ''
+const GARMIN_AUTH_URL  = 'https://connect.garmin.com/oauth-service/oauth/authorize'
+const GARMIN_TOKEN_URL = 'https://connectapi.garmin.com/oauth-service/oauth/token'
+const GARMIN_API_BASE  = 'https://healthapi.garmin.com/wellness-api/rest'
+
+export async function initiateGarminAuth() {
+  const verifier  = generateRandomString(64)
+  const challenge = await sha256Base64Url(verifier)
+  const state     = generateRandomString(16)
+  const redirect  = `${window.location.origin}${window.location.pathname}`
+
+  sessionStorage.setItem('garmin_verifier', verifier)
+  sessionStorage.setItem('garmin_state', state)
+
+  const params = new URLSearchParams({
+    client_id:             GARMIN_CLIENT_ID,
+    response_type:         'code',
+    redirect_uri:          redirect,
+    scope:                 'BODY_BATTERY DAILY_SUMMARY HEART_RATE SLEEP STRESS',
+    state:                 state + '_garmin', // suffix so we can tell apart from Whoop
+    code_challenge:        challenge,
+    code_challenge_method: 'S256',
+  })
+
+  window.location.href = `${GARMIN_AUTH_URL}?${params}`
+}
+
+export async function exchangeGarminCode(code, state) {
+  const verifier   = sessionStorage.getItem('garmin_verifier')
+  const savedState = sessionStorage.getItem('garmin_state')
+  const cleanState = state?.replace('_garmin', '')
+  if (cleanState && cleanState !== savedState) throw new Error('Garmin OAuth state mismatch')
+
+  const redirect = `${window.location.origin}${window.location.pathname}`
+
+  const res = await fetch(GARMIN_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'authorization_code',
+      client_id:     GARMIN_CLIENT_ID,
+      code,
+      redirect_uri:  redirect,
+      code_verifier: verifier ?? '',
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error_description ?? `Garmin token exchange failed (${res.status})`)
+  }
+
+  sessionStorage.removeItem('garmin_verifier')
+  sessionStorage.removeItem('garmin_state')
+
+  return res.json()
+}
+
+async function garminGet(path, token) {
+  const res = await fetch(`${GARMIN_API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Garmin API error ${res.status} on ${path}`)
+  return res.json()
+}
+
+export async function fetchGarminData(accessToken) {
+  // Garmin API uses upload timestamps in seconds
+  const now       = Math.floor(Date.now() / 1000)
+  const yesterday = now - 86400
+
+  const [daily, battery, sleep, stress] = await Promise.allSettled([
+    garminGet(`/dailies?uploadStartTimeInSeconds=${yesterday}&uploadEndTimeInSeconds=${now}`, accessToken),
+    garminGet(`/bodyBattery?uploadStartTimeInSeconds=${yesterday}&uploadEndTimeInSeconds=${now}`, accessToken),
+    garminGet(`/sleeps?uploadStartTimeInSeconds=${yesterday}&uploadEndTimeInSeconds=${now}`, accessToken),
+    garminGet(`/stressDetails?uploadStartTimeInSeconds=${yesterday}&uploadEndTimeInSeconds=${now}`, accessToken),
+  ])
+
+  const latestDaily   = daily.status   === 'fulfilled' ? daily.value?.[0]   : null
+  const latestSleep   = sleep.status   === 'fulfilled' ? sleep.value?.[0]   : null
+  const batteryPoints = battery.status === 'fulfilled' ? battery.value ?? [] : []
+  const stressData    = stress.status  === 'fulfilled' ? stress.value?.[0]  : null
+
+  // Body Battery: take the last reading of the day (highest is morning, drains through day)
+  const latestBattery = batteryPoints.length
+    ? batteryPoints[batteryPoints.length - 1]?.bodyBatteryStatList?.slice(-1)[0]?.bodyBatteryLevel ?? null
+    : null
+
+  const sleepMs = latestSleep?.durationInSeconds ? latestSleep.durationInSeconds * 1000 : null
+
+  return {
+    source:        'garmin',
+    recoveryScore: latestBattery,                                          // 0–100 Body Battery
+    hrv:           null,                                                   // not in wellness API
+    restingHR:     latestDaily?.restingHeartRateInBeatsPerMinute ?? null,
+    sleepScore:    latestSleep?.averageSpO2Value ?? null,
+    sleepDuration: sleepMs,
+    strain:        null,
+    stressLevel:   stressData?.averageStressLevel ?? latestDaily?.averageStressLevel ?? null,
+    fetchedAt:     new Date().toISOString(),
+  }
+}
+
 // ── Google Fit API ────────────────────────────────────────────────────────────
 export async function fetchGoogleFitData(accessToken) {
   const now    = Date.now()

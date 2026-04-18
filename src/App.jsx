@@ -26,7 +26,8 @@ import BiometricPanel from './components/BiometricPanel.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
 import {
   exchangeWhoopCode, fetchWhoopData, fetchGoogleFitData,
-  initiateWhoopAuth, computeReadiness, getStudyMode, STUDY_MODE_META,
+  initiateWhoopAuth, initiateGarminAuth, exchangeGarminCode, fetchGarminData,
+  computeReadiness, getStudyMode, STUDY_MODE_META,
 } from './utils/wearableApi.js'
 
 const INITIAL_STATE = {
@@ -96,7 +97,8 @@ export default function App({ googleEnabled = true }) {
     try { return JSON.parse(localStorage.getItem('scc_biometric') ?? 'null') } catch { return null }
   })
   const [biometricLoading, setBiometricLoading] = useState(false)
-  const [whoopToken,       setWhoopToken]       = useState(() => localStorage.getItem('scc_whoop_token'))
+  const [whoopToken,  setWhoopToken]  = useState(() => localStorage.getItem('scc_whoop_token'))
+  const [garminToken, setGarminToken] = useState(() => localStorage.getItem('scc_garmin_token'))
 
   // Persist biometric data
   useEffect(() => {
@@ -104,42 +106,65 @@ export default function App({ googleEnabled = true }) {
     else localStorage.removeItem('scc_biometric')
   }, [biometricData])
 
-  // Handle Whoop OAuth callback (code in URL params)
+  // Handle Whoop / Garmin OAuth callbacks (code + state in URL params)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const code   = params.get('code')
     const state  = params.get('state')
     if (!code) return
 
-    // Clean URL immediately
     window.history.replaceState({}, '', window.location.pathname)
-
     setBiometricLoading(true)
-    exchangeWhoopCode(code, state)
-      .then(tokens => {
-        const token = tokens.access_token
-        localStorage.setItem('scc_whoop_token', token)
-        setWhoopToken(token)
-        return fetchWhoopData(token)
-      })
-      .then(data => { setBiometricData(data); setView('vitals') })
-      .catch(err  => console.error('Whoop auth error:', err))
-      .finally(()  => setBiometricLoading(false))
+
+    const isGarmin = state?.endsWith('_garmin')
+
+    if (isGarmin) {
+      exchangeGarminCode(code, state)
+        .then(tokens => {
+          const token = tokens.access_token
+          localStorage.setItem('scc_garmin_token', token)
+          setGarminToken(token)
+          return fetchGarminData(token)
+        })
+        .then(data => { setBiometricData(data); setView('vitals') })
+        .catch(err  => console.error('Garmin auth error:', err))
+        .finally(()  => setBiometricLoading(false))
+    } else {
+      exchangeWhoopCode(code, state)
+        .then(tokens => {
+          const token = tokens.access_token
+          localStorage.setItem('scc_whoop_token', token)
+          setWhoopToken(token)
+          return fetchWhoopData(token)
+        })
+        .then(data => { setBiometricData(data); setView('vitals') })
+        .catch(err  => console.error('Whoop auth error:', err))
+        .finally(()  => setBiometricLoading(false))
+    }
   }, [])
 
   async function handleRefreshBiometrics() {
-    if (!whoopToken && !biometricData) return
     setBiometricLoading(true)
     try {
-      if (whoopToken) {
-        const data = await fetchWhoopData(whoopToken)
-        setBiometricData(data)
+      if (biometricData?.source === 'garmin' && garminToken) {
+        setBiometricData(await fetchGarminData(garminToken))
+      } else if (whoopToken) {
+        setBiometricData(await fetchWhoopData(whoopToken))
       }
     } catch (err) {
       console.error('Refresh failed:', err)
     } finally {
       setBiometricLoading(false)
     }
+  }
+
+  function handleDisconnectBiometrics() {
+    setBiometricData(null)
+    setWhoopToken(null)
+    setGarminToken(null)
+    localStorage.removeItem('scc_biometric')
+    localStorage.removeItem('scc_whoop_token')
+    localStorage.removeItem('scc_garmin_token')
   }
 
   // Google Fit login function (populated by GoogleFitBridge when googleEnabled=true)
@@ -562,8 +587,10 @@ export default function App({ googleEnabled = true }) {
             biometricLoading={biometricLoading}
             assignments={assignments}
             onConnectWhoop={initiateWhoopAuth}
+            onConnectGarmin={initiateGarminAuth}
             onConnectGoogleFit={googleEnabled ? () => googleFitLoginRef.current?.() : null}
             onRefresh={handleRefreshBiometrics}
+            onDisconnect={handleDisconnectBiometrics}
             googleEnabled={googleEnabled}
           />
         </div>
