@@ -115,7 +115,13 @@ function QuizView({ questions }) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export default function DetailView({ selectedAssignment, onNotesGenerated, onQuizGenerated }) {
+const STUDY_MODE_HINTS = {
+  peak:   { notesStyle: 'Go deep — include advanced details, edge cases, and exam traps. This student is in peak cognitive state.',   quizStyle: 'Make the questions challenging with nuanced answer choices.' },
+  review: { notesStyle: 'Focus on key concepts and memorable summaries. Reinforce existing knowledge concisely.',                     quizStyle: 'Balance difficulty — some recall, some application questions.'     },
+  rest:   { notesStyle: 'Keep it very brief and simple. Bullet-point the most essential 3–5 facts only. Avoid overwhelming detail.', quizStyle: 'Use straightforward recall questions only.'                         },
+}
+
+export default function DetailView({ selectedAssignment, onNotesGenerated, onQuizGenerated, biometricData, studyMode }) {
   const [notesLoading, setNotesLoading] = useState(false)
   const [quizLoading,  setQuizLoading]  = useState(false)
   const [notesError,   setNotesError]   = useState('')
@@ -139,12 +145,21 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
   const { id, course, title, dueDate, weight, status, description, notes, quiz } = selectedAssignment
   const isPast = new Date(dueDate + 'T23:59:59').getTime() < Date.now() && status !== 'completed'
 
+  const modeHints    = STUDY_MODE_HINTS[studyMode] ?? {}
+  const bioCtx = biometricData
+    ? `\nStudent biometrics: recovery ${biometricData.recoveryScore ?? '?'}%, HR ${biometricData.restingHR ?? '?'} bpm, HRV ${biometricData.hrv ? Math.round(biometricData.hrv) + 'ms' : '?'}. Study mode: ${studyMode ?? 'unknown'}.`
+    : ''
+
   async function handleGenerateNotes() {
     setNotesLoading(true); setNotesError('')
     try {
-      const result = await callGemini(
+      const system = [
         'You are a study assistant. Generate clear, structured study notes for the given assignment. Use headers (##), bullet points (•), and concise language. Return plain text — no JSON.',
-        `Course: ${course}\nAssignment: ${title}\nDescription: ${description}`
+        modeHints.notesStyle ?? '',
+      ].filter(Boolean).join(' ')
+      const result = await callGemini(
+        system,
+        `Course: ${course}\nAssignment: ${title}\nDescription: ${description}${bioCtx}`
       )
       onNotesGenerated(id, result)
       setActiveTab('notes')
@@ -155,12 +170,13 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
   async function handleGenerateQuiz() {
     setQuizLoading(true); setQuizError('')
     try {
+      const system = [
+        `You are a study assistant. Generate exactly 5 multiple choice questions for the given assignment.\nReturn ONLY a valid JSON array, no markdown, no explanation:\n[{"question":"...","choices":["A text","B text","C text","D text"],"correct":0}]\n"correct" is the zero-based index of the right answer.`,
+        modeHints.quizStyle ?? '',
+      ].filter(Boolean).join(' ')
       const raw = await callGemini(
-        `You are a study assistant. Generate exactly 5 multiple choice questions for the given assignment.
-Return ONLY a valid JSON array, no markdown, no explanation:
-[{"question":"...","choices":["A text","B text","C text","D text"],"correct":0}]
-"correct" is the zero-based index of the right answer.`,
-        `Course: ${course}\nAssignment: ${title}\nDescription: ${description}`
+        system,
+        `Course: ${course}\nAssignment: ${title}\nDescription: ${description}${bioCtx}`
       )
       const clean  = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
       const parsed = JSON.parse(clean)
@@ -206,6 +222,26 @@ Return ONLY a valid JSON array, no markdown, no explanation:
         <div style={s.metaRow}>
           <MetaChip icon="📅" label="Due" value={dueDate} highlight={isPast ? '#F85149' : null} />
           {weight > 0 && <MetaChip icon="⚖️" label="Weight" value={`${weight}%`} />}
+          {studyMode && (() => {
+            const modeColor = { peak: '#3FB950', review: '#E3B341', rest: '#F85149' }[studyMode]
+            const modeIcon  = { peak: '⚡', review: '📖', rest: '😴' }[studyMode]
+            return (
+              <span style={{
+                display:         'flex',
+                alignItems:      'center',
+                gap:             '4px',
+                fontSize:        '0.72rem',
+                fontWeight:      700,
+                color:           modeColor,
+                backgroundColor: modeColor + '18',
+                border:          `1px solid ${modeColor}44`,
+                borderRadius:    '20px',
+                padding:         '2px 8px',
+              }}>
+                {modeIcon} {studyMode === 'peak' ? 'Peak Focus' : studyMode === 'review' ? 'Review Mode' : 'Rest Mode'}
+              </span>
+            )
+          })()}
         </div>
 
         {isPast && status !== 'completed' && (

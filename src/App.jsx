@@ -1,4 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useGoogleLogin } from '@react-oauth/google'
+
+// Only rendered inside GoogleOAuthProvider — safely exposes the login fn via ref
+function GoogleFitBridge({ loginRef, onSuccess }) {
+  const login = useGoogleLogin({
+    onSuccess,
+    scope: [
+      'https://www.googleapis.com/auth/fitness.heart_rate.read',
+      'https://www.googleapis.com/auth/fitness.sleep.read',
+      'https://www.googleapis.com/auth/fitness.activity.read',
+    ].join(' '),
+  })
+  useEffect(() => { loginRef.current = login }, [login])
+  return null
+}
 import Browser from './components/Browser.jsx'
 import DetailView from './components/DetailView.jsx'
 import Controller from './components/Controller.jsx'
@@ -7,7 +22,12 @@ import CalendarView from './components/CalendarView.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
 import ChatBot from './components/ChatBot.jsx'
 import ChapterNotes from './components/ChapterNotes.jsx'
+import BiometricPanel from './components/BiometricPanel.jsx'
 import { syncAllAssignments } from './utils/googleCalendar.js'
+import {
+  exchangeWhoopCode, fetchWhoopData, fetchGoogleFitData,
+  initiateWhoopAuth, computeReadiness, getStudyMode, STUDY_MODE_META,
+} from './utils/wearableApi.js'
 
 const INITIAL_STATE = {
   selectedAssignment: 'asgn-01',
@@ -56,7 +76,7 @@ const INITIAL_STATE = {
 
 export default function App({ googleEnabled = true }) {
   const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
-  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters'
+  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters' | 'vitals'
   const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
   const [isDemoData, setIsDemoData] = useState(true)
 
@@ -70,6 +90,74 @@ export default function App({ googleEnabled = true }) {
   const [googleProfile, setGoogleProfile] = useState(null)
   const [calEventIds,  setCalEventIds]  = useState({}) // { assignmentId -> gcal eventId }
   const [syncStatus,   setSyncStatus]   = useState('idle') // 'idle' | 'syncing' | 'synced' | 'error'
+
+  // ── Biometrics ────────────────────────────────────────────────────────────────
+  const [biometricData,    setBiometricData]    = useState(() => {
+    try { return JSON.parse(localStorage.getItem('scc_biometric') ?? 'null') } catch { return null }
+  })
+  const [biometricLoading, setBiometricLoading] = useState(false)
+  const [whoopToken,       setWhoopToken]       = useState(() => localStorage.getItem('scc_whoop_token'))
+
+  // Persist biometric data
+  useEffect(() => {
+    if (biometricData) localStorage.setItem('scc_biometric', JSON.stringify(biometricData))
+    else localStorage.removeItem('scc_biometric')
+  }, [biometricData])
+
+  // Handle Whoop OAuth callback (code in URL params)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code   = params.get('code')
+    const state  = params.get('state')
+    if (!code) return
+
+    // Clean URL immediately
+    window.history.replaceState({}, '', window.location.pathname)
+
+    setBiometricLoading(true)
+    exchangeWhoopCode(code, state)
+      .then(tokens => {
+        const token = tokens.access_token
+        localStorage.setItem('scc_whoop_token', token)
+        setWhoopToken(token)
+        return fetchWhoopData(token)
+      })
+      .then(data => { setBiometricData(data); setView('vitals') })
+      .catch(err  => console.error('Whoop auth error:', err))
+      .finally(()  => setBiometricLoading(false))
+  }, [])
+
+  async function handleRefreshBiometrics() {
+    if (!whoopToken && !biometricData) return
+    setBiometricLoading(true)
+    try {
+      if (whoopToken) {
+        const data = await fetchWhoopData(whoopToken)
+        setBiometricData(data)
+      }
+    } catch (err) {
+      console.error('Refresh failed:', err)
+    } finally {
+      setBiometricLoading(false)
+    }
+  }
+
+  // Google Fit login function (populated by GoogleFitBridge when googleEnabled=true)
+  const googleFitLoginRef = useRef(null)
+
+  async function handleGoogleFitSuccess(res) {
+    setBiometricLoading(true)
+    try {
+      const data = await fetchGoogleFitData(res.access_token)
+      setBiometricData(data)
+      setView('vitals')
+    } catch (err) { console.error('Google Fit error:', err) }
+    finally { setBiometricLoading(false) }
+  }
+
+  const readiness = computeReadiness(biometricData)
+  const studyMode = getStudyMode(readiness)
+  const studyMeta = studyMode ? STUDY_MODE_META[studyMode] : null
 
   // ── Assignments ───────────────────────────────────────────────────────────────
   const [selectedAssignment, setSelectedAssignment] = useState(INITIAL_STATE.selectedAssignment)
@@ -276,7 +364,8 @@ export default function App({ googleEnabled = true }) {
             { id: 'dashboard', label: '⊞ Dashboard' },
             { id: 'calendar',  label: '📅 Calendar'  },
             { id: 'chapters',  label: '📚 Chapters'  },
-          ].map(({ id, label }) => (
+            { id: 'vitals',    label: '💓 Vitals',    dotColor: studyMeta?.color },
+          ].map(({ id, label, dotColor }) => (
             <button
               key={id}
               className="nav-tab"
@@ -286,12 +375,27 @@ export default function App({ googleEnabled = true }) {
                 ...styles.tab,
                 color:           view === id ? 'var(--text-primary)' : 'var(--text-muted)',
                 borderBottom:    view === id
-                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : '#58A6FF'}`
+                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : id === 'vitals' ? (studyMeta?.color ?? '#F85149') : '#58A6FF'}`
                   : '2px solid transparent',
                 backgroundColor: view === id ? 'var(--bg-elevated)' : 'transparent',
+                position:        'relative',
               }}
             >
               {label}
+              {id === 'vitals' && biometricData && studyMeta && (
+                <span style={{
+                  display:         'inline-block',
+                  width:           '7px',
+                  height:          '7px',
+                  borderRadius:    '50%',
+                  backgroundColor: studyMeta.color,
+                  marginLeft:      '5px',
+                  boxShadow:       `0 0 6px ${studyMeta.color}`,
+                  animation:       'brand-dot-pulse 2s ease-in-out infinite',
+                  verticalAlign:   'middle',
+                  marginBottom:    '1px',
+                }} />
+              )}
             </button>
           ))}
         </div>
@@ -392,6 +496,8 @@ export default function App({ googleEnabled = true }) {
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
               onQuizGenerated={handleQuizGenerated}
+              biometricData={biometricData}
+              studyMode={studyMode}
             />
           </div>
           <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right">
@@ -426,6 +532,8 @@ export default function App({ googleEnabled = true }) {
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
               onQuizGenerated={handleQuizGenerated}
+              biometricData={biometricData}
+              studyMode={studyMode}
             />
             <div style={{ borderTop: '1px solid var(--border)' }}>
               <Controller
@@ -443,9 +551,21 @@ export default function App({ googleEnabled = true }) {
             </div>
           </div>
         </div>
-      ) : (
+      ) : view === 'chapters' ? (
         <div key="chapters" style={styles.chaptersLayout} className="animate-fadeIn">
           <ChapterNotes />
+        </div>
+      ) : (
+        <div key="vitals" style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="animate-fadeIn">
+          <BiometricPanel
+            biometricData={biometricData}
+            biometricLoading={biometricLoading}
+            assignments={assignments}
+            onConnectWhoop={initiateWhoopAuth}
+            onConnectGoogleFit={googleEnabled ? () => googleFitLoginRef.current?.() : null}
+            onRefresh={handleRefreshBiometrics}
+            googleEnabled={googleEnabled}
+          />
         </div>
       )}
 
@@ -455,6 +575,11 @@ export default function App({ googleEnabled = true }) {
           onAssignmentsLoaded={handleAssignmentsLoaded}
           onClose={() => setShowUpload(false)}
         />
+      )}
+
+      {/* ── Google Fit bridge (hook safe-guard — only when provider present) ─ */}
+      {googleEnabled && (
+        <GoogleFitBridge loginRef={googleFitLoginRef} onSuccess={handleGoogleFitSuccess} />
       )}
 
       {/* ── AI Chatbot ───────────────────────────────────────────── */}
