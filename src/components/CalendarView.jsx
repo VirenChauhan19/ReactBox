@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 const DAYS        = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS      = ['January','February','March','April','May','June',
@@ -237,7 +238,7 @@ export default function CalendarView({
       </div>
 
       {/* ── Add Event Modal ────────────────────────────────────────────── */}
-      {modal && (
+      {modal && createPortal(
         <div style={s.backdrop} onClick={closeModal}>
           <div style={s.modalCard} className="animate-popIn" onClick={e => e.stopPropagation()}>
 
@@ -320,7 +321,8 @@ export default function CalendarView({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
