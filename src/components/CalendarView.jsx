@@ -7,13 +7,24 @@ const MONTHS      = ['January','February','March','April','May','June',
 const MONTHS_S    = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 const URGENCY_COLOR = { high: '#F85149', medium: '#E3B341', low: '#3FB950' }
 const EVENT_COLORS  = ['#58A6FF','#BC8CFF','#F78166','#E3B341','#3FB950','#FF6B9D']
-const DURATIONS     = [
-  { label: '30 min', value: 30 },
-  { label: '1 hour', value: 60 },
-  { label: '1.5 hours', value: 90 },
-  { label: '2 hours', value: 120 },
-  { label: '3 hours', value: 180 },
-]
+// 5-minute increment time slots (24h "HH:MM")
+const TIME_SLOTS = Array.from({ length: 288 }, (_, i) => {
+  const h = Math.floor((i * 5) / 60)
+  const m = (i * 5) % 60
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+})
+function fmtTime(hhmm) {
+  if (!hhmm) return ''
+  const [h, m] = hhmm.split(':').map(Number)
+  const ampm = h < 12 ? 'AM' : 'PM'
+  const h12  = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2,'0')} ${ampm}`
+}
+function diffMinutes(start, end) {
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  return ((eh*60+em) - (sh*60+sm) + 1440) % 1440
+}
 
 // ── Time grid constants ───────────────────────────────────────────────────────
 const HOUR_H     = 60   // px per hour
@@ -107,9 +118,9 @@ export default function CalendarView({
   const [modal,   setModal]   = useState(null)
   const [mTitle,  setMTitle]  = useState('')
   const [mColor,  setMColor]  = useState(EVENT_COLORS[0])
-  const [mTime,   setMTime]   = useState('')
-  const [mDur,    setMDur]    = useState(60)
-  const [mAllDay, setMAllDay] = useState(true)
+  const [mTime,    setMTime]    = useState('')
+  const [mEndTime, setMEndTime] = useState('')
+  const [mAllDay,  setMAllDay]  = useState(true)
   const [mDesc,   setMDesc]   = useState('')
   const inputRef = useRef(null)
 
@@ -143,7 +154,17 @@ export default function CalendarView({
     const [y, m, d] = dateStr.split('-')
     const label = `${MONTHS[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`
     setMTitle(''); setMColor(EVENT_COLORS[0]); setMDesc('')
-    setMTime(prefillTime); setMDur(60); setMAllDay(!prefillTime)
+    // Round prefill or now to nearest 5 min
+    let startSlot = prefillTime
+    if (!startSlot) {
+      const now = new Date()
+      const totalMin = now.getHours() * 60 + now.getMinutes()
+      const rounded  = Math.round(totalMin / 5) * 5 % 1440
+      startSlot = `${String(Math.floor(rounded/60)).padStart(2,'0')}:${String(rounded%60).padStart(2,'0')}`
+    }
+    setMTime(startSlot)
+    setMEndTime(addMinutes(startSlot, 60))
+    setMAllDay(!prefillTime)
     setModal({ dateStr, label })
   }
   function closeModal() { setModal(null) }
@@ -155,7 +176,7 @@ export default function CalendarView({
       title: t,
       color: mColor,
       time: mAllDay ? '' : mTime,
-      duration: mAllDay ? 0 : mDur,
+      duration: mAllDay ? 0 : diffMinutes(mTime, mEndTime),
       desc: mDesc.trim(),
     })
     closeModal()
@@ -255,14 +276,15 @@ export default function CalendarView({
             </div>
 
             {/* Title */}
-            <input ref={inputRef} style={s.titleInput} placeholder="Add title…"
+            <input ref={inputRef} style={s.titleInput} className="cal-title-input" placeholder="Add title…"
               value={mTitle} onChange={e => setMTitle(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && saveModal()} maxLength={60} />
 
             {/* Time row */}
             <div style={s.fieldRow}>
               <span style={s.fieldIcon}>🕐</span>
-              <div style={{ display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap', flex:1 }}>
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px', flex:1 }}>
+                {/* All-day toggle */}
                 <label style={s.toggleLabel}>
                   <div onClick={() => setMAllDay(v => !v)} style={{
                     ...s.toggleTrack,
@@ -273,15 +295,27 @@ export default function CalendarView({
                   </div>
                   <span style={s.toggleTxt}>{mAllDay ? 'All day' : 'Timed'}</span>
                 </label>
+                {/* Start → End time pickers */}
                 {!mAllDay && (
-                  <>
-                    <input type="time" value={mTime} onChange={e => setMTime(e.target.value)}
-                      style={{ ...s.inlineInput, width:'120px' }} />
-                    <select value={mDur} onChange={e => setMDur(Number(e.target.value))}
-                      style={{ ...s.inlineInput, width:'110px' }}>
-                      {DURATIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  <div style={{ display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap' }}>
+                    <select value={mTime} className="cal-time-select" onChange={e => {
+                        setMTime(e.target.value)
+                        if (diffMinutes(e.target.value, mEndTime) < 5)
+                          setMEndTime(addMinutes(e.target.value, 60))
+                      }}
+                      style={s.timeSelect}>
+                      {TIME_SLOTS.map(t => <option key={t} value={t}>{fmtTime(t)}</option>)}
                     </select>
-                  </>
+                    <span style={{ color:'var(--text-muted)', fontSize:'0.8rem', fontWeight:600 }}>→</span>
+                    <select value={mEndTime} className="cal-time-select" onChange={e => setMEndTime(e.target.value)}
+                      style={s.timeSelect}>
+                      {TIME_SLOTS.filter(t => diffMinutes(mTime, t) >= 5).map(t => (
+                        <option key={t} value={t}>
+                          {fmtTime(t)}{(() => { const d=diffMinutes(mTime,t); if(!d) return ''; const h=Math.floor(d/60),m=d%60; return ` (${h?h+'h':''}${h&&m?' ':''}${m?m+'m':''})`; })()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
             </div>
@@ -314,9 +348,9 @@ export default function CalendarView({
 
             {/* Footer */}
             <div style={s.modalFooter}>
-              <button style={s.cancelBtn} onClick={closeModal}>Cancel</button>
-              <button style={{ ...s.saveBtn, opacity: mTitle.trim() ? 1 : 0.45 }}
-                onClick={saveModal} disabled={!mTitle.trim()}>
+              <button style={s.cancelBtn} className="cal-cancel-btn" onClick={closeModal}>Cancel</button>
+              <button style={{ ...s.saveBtn, opacity: mTitle.trim() ? 1 : 0.45, transition:'opacity .15s, background-color .15s, box-shadow .15s, transform .1s' }}
+                className="cal-save-btn" onClick={saveModal} disabled={!mTitle.trim()}>
                 Save Event
               </button>
             </div>
@@ -870,6 +904,15 @@ function NavBtn({ children, onClick }) {
 const CSS = `
   @keyframes calSlideLeft  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
   @keyframes calSlideRight { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes popIn { from{opacity:0;transform:scale(0.92) translateY(14px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  .animate-popIn { animation: popIn .26s cubic-bezier(.16,1,.3,1) both; }
+  .cal-save-btn:hover:not(:disabled) { background-color:#2EA043 !important; box-shadow:0 4px 18px rgba(46,160,67,0.35) !important; transform:translateY(-1px); }
+  .cal-save-btn:active:not(:disabled) { transform:translateY(0); }
+  .cal-cancel-btn:hover { background-color:var(--bg-elevated) !important; color:var(--text-primary) !important; }
+  .cal-title-input:focus { border-color:#58A6FF !important; box-shadow:0 0 0 3px rgba(88,166,255,0.15) !important; }
+  .cal-time-select { appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238B949E'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:26px !important; }
+  .cal-time-select:hover { border-color:#58A6FF !important; background-color:color-mix(in srgb, #58A6FF 8%, var(--bg-elevated)) !important; }
+  .cal-time-select:focus { outline:none; border-color:#58A6FF !important; box-shadow:0 0 0 3px rgba(88,166,255,0.18) !important; }
 `
 
 const s = {
@@ -921,9 +964,11 @@ const s = {
   // modal
   backdrop: { position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'24px' },
   modalCard: {
-    backgroundColor:'var(--bg-surface)', border:'1px solid var(--border)',
-    borderRadius:'18px', padding:'24px', width:'100%', maxWidth:'420px',
-    boxShadow:'0 32px 80px rgba(0,0,0,0.6)',
+    backgroundColor:'var(--bg-surface)',
+    border:'1px solid var(--border)',
+    borderTop:'1px solid rgba(88,166,255,0.25)',
+    borderRadius:'18px', padding:'24px', width:'100%', maxWidth:'460px',
+    boxShadow:'0 40px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(88,166,255,0.06)',
     fontFamily:"'Inter',system-ui,sans-serif",
   },
   modalHeader: { display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:'16px' },
@@ -952,6 +997,13 @@ const s = {
     backgroundColor:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:'6px',
     color:'var(--text-primary)', fontSize:'0.8rem', padding:'6px 10px',
     fontFamily:"'Inter',system-ui,sans-serif", outline:'none',
+  },
+  timeSelect: {
+    backgroundColor:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:'8px',
+    color:'var(--text-primary)', fontSize:'0.83rem', fontWeight:500,
+    padding:'7px 26px 7px 11px', fontFamily:"'Inter',system-ui,sans-serif",
+    cursor:'pointer', transition:'border-color .15s, background-color .15s, box-shadow .15s',
+    minWidth:'120px',
   },
   colorLabel: { margin:'0 0 8px', fontSize:'0.68rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.08em' },
   modalFooter: { display:'flex', gap:'10px', justifyContent:'flex-end', marginTop:'6px' },
