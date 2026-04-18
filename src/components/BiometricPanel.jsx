@@ -282,7 +282,7 @@ export default function BiometricPanel({
   const [insightLoading, setInsightLoading]       = useState(false)
   const [refreshing, setRefreshing]               = useState(false)
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
-  const [showGarminModal, setShowGarminModal]     = useState(false)
+  const [manualDevice, setManualDevice]           = useState(null) // null = hidden, else 'whoop'|'garmin'|etc.
   const refreshBtnRef = useRef(null)
 
   const readiness  = computeReadiness(biometricData)
@@ -345,7 +345,7 @@ export default function BiometricPanel({
             <button
               className="bio-connect-btn"
               style={{ ...s.connectBtn, background: 'linear-gradient(135deg, #7B3FDB, #A855F7)', border: '1px solid #A855F766' }}
-              onClick={onConnectWhoop}
+              onClick={() => setManualDevice('whoop')}
             >
               <span style={{ fontSize: '1.3rem' }}>💪</span>
               <div>
@@ -357,7 +357,7 @@ export default function BiometricPanel({
             <button
               className="bio-connect-btn"
               style={{ ...s.connectBtn, background: 'linear-gradient(135deg, #0A2B4E, #007DC5)', border: '1px solid #007DC566' }}
-              onClick={() => setShowGarminModal(true)}
+              onClick={() => setManualDevice('garmin')}
             >
               <span style={{ fontSize: '1.3rem' }}>⌚</span>
               <div>
@@ -393,10 +393,11 @@ export default function BiometricPanel({
           </p>
         </div>
 
-        {showGarminModal && (
+        {manualDevice && (
           <ManualBiometricModal
-            onSave={data => { onConnectGarmin?.(data); setShowGarminModal(false) }}
-            onClose={() => setShowGarminModal(false)}
+            initialDevice={manualDevice}
+            onSave={data => { onConnectGarmin?.(data); setManualDevice(null) }}
+            onClose={() => setManualDevice(null)}
           />
         )}
       </div>
@@ -427,7 +428,14 @@ export default function BiometricPanel({
   const sleepSub = biometricData.sleepScore
     ? formatSleepDuration(biometricData.sleepDuration)
     : 'duration'
-  const sourceLabel = { whoop: 'Whoop', garmin: 'Garmin', 'garmin-manual': 'Garmin', 'google-fit': 'Google Fit' }[biometricData.source] ?? biometricData.source
+  const sourceLabel = {
+    whoop: 'Whoop', 'whoop-manual': 'Whoop',
+    garmin: 'Garmin', 'garmin-manual': 'Garmin',
+    apple: 'Apple Watch', 'apple-manual': 'Apple Watch',
+    coros: 'Coros', 'coros-manual': 'Coros',
+    'google-fit': 'Google Fit',
+    'other-manual': 'Wearable',
+  }[biometricData.source] ?? biometricData.source
   const syncedAgo = biometricData.fetchedAt
     ? (() => {
         const mins = Math.round((Date.now() - new Date(biometricData.fetchedAt)) / 60000)
@@ -449,12 +457,12 @@ export default function BiometricPanel({
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {biometricData?.source === 'garmin-manual' && (
+          {biometricData?.source?.endsWith('-manual') && (
             <button
-              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: '#007DC5', borderColor: '#007DC566' }}
-              onClick={() => setShowGarminModal(true)}
-              title="Update Garmin stats"
-            >⌚ Update</button>
+              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: '#58A6FF', borderColor: '#58A6FF55' }}
+              onClick={() => setManualDevice(biometricData.source.replace('-manual', ''))}
+              title="Update stats"
+            >✏️ Update</button>
           )}
           <button
             ref={refreshBtnRef}
