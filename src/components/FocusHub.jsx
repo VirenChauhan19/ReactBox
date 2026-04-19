@@ -396,7 +396,7 @@ const SOUNDS = [
   { id: 'white',  emoji: '🌊', label: 'Ocean',       noiseType: 'white', filter: { type: 'lowpass',  freq: 2000 } },
   { id: 'forest', emoji: '🌿', label: 'Forest',      noiseType: 'pink',  filter: { type: 'bandpass', freq: 900  } },
   { id: 'cafe',   emoji: '☕', label: 'Café',        noiseType: 'brown', filter: { type: 'bandpass', freq: 700  } },
-  { id: 'lofi',   emoji: '🎵', label: 'Lo-Fi',       noiseType: null },
+  { id: 'lofi',   emoji: '🎵', label: 'Lo-Fi',       noiseType: 'pink',  filter: { type: 'lowpass',  freq: 400  } },
 ]
 
 function buildNoiseBuffer(ctx, type) {
@@ -432,7 +432,6 @@ function buildNoiseBuffer(ctx, type) {
 function AmbientPlayer() {
   const [active,  setActive]  = useState(null)
   const [volume,  setVolume]  = useLS('scc_amb_vol', 0.35)
-  const [showYT,  setShowYT]  = useState(false)
   const ctxRef   = useRef(null)
   const nodesRef = useRef({})
 
@@ -444,15 +443,11 @@ function AmbientPlayer() {
 
   async function toggleSound(id) {
     if (active === id) {
-      stopAll(); setActive(null); setShowYT(false); return
+      stopAll(); setActive(null); return
     }
-    stopAll(); setShowYT(false)
+    stopAll()
     const sound = SOUNDS.find(s => s.id === id)
     if (!sound) return
-
-    if (!sound.noiseType) {
-      setActive(id); setShowYT(true); return
-    }
 
     try {
       if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)()
@@ -542,23 +537,6 @@ function AmbientPlayer() {
         </span>
       </div>
 
-      {/* Lo-fi YouTube embed */}
-      {showYT && (
-        <div style={{ marginTop: '12px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border)' }} className="animate-slideDown">
-          <iframe
-            width="100%" height="90"
-            src="https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&loop=1&playlist=jfKfPfyJRdk"
-            title="Lo-fi Hip Hop Radio"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            style={{ display: 'block' }}
-          />
-          <p style={{ margin: 0, fontSize: '0.62rem', color: 'var(--text-muted)', padding: '6px 10px', backgroundColor: 'var(--bg-elevated)', textAlign: 'center' }}>
-            Lo-fi Hip Hop · 24/7 Study Stream
-          </p>
-        </div>
-      )}
     </div>
   )
 }
