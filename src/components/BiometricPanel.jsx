@@ -639,10 +639,11 @@ export default function BiometricPanel({
         )}
       </div>
 
-      {showGarminModal && (
+      {manualDevice && (
         <ManualBiometricModal
-          onSave={data => { onConnectGarmin?.(data); setShowGarminModal(false) }}
-          onClose={() => setShowGarminModal(false)}
+          initialDevice={manualDevice}
+          onSave={data => { onConnectGarmin?.(data); setManualDevice(null) }}
+          onClose={() => setManualDevice(null)}
         />
       )}
     </div>
