@@ -21,7 +21,7 @@ export default function Browser({ assignments, selectedAssignment, onSelect }) {
   const pct    = total ? Math.round((done / total) * 100) : 0
 
   return (
-    <div style={s.container}>
+    <div style={s.container} className="glass-panel">
       {/* ── Header ──────────────────────────────────────────────── */}
       <div style={s.header}>
         <p style={s.panelLabel}>Assignments</p>

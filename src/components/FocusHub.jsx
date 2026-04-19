@@ -587,6 +587,9 @@ export default function FocusHub() {
       gap: '14px',
       alignItems: 'start',
       fontFamily: "'Inter', system-ui, sans-serif",
+      backgroundColor: 'var(--bg-main)',
+      backdropFilter: 'blur(22px) saturate(170%)',
+      WebkitBackdropFilter: 'blur(22px) saturate(170%)',
     }} className="focus-hub-grid">
       {/* Col 1: Timer */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

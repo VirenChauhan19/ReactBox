@@ -6,55 +6,67 @@ html, body, #root { height: 100%; }
 
 /* ── Theme variables ─────────────────────────────────────────────────────── */
 :root {
-  --bg-main:      #0D1117;
-  --bg-surface:   #161B22;
-  --bg-elevated:  #21262D;
-  --bg-hover:     #1C2128;
-  --border:       #30363D;
-  --border-strong:#484F58;
+  --bg-main:      rgba(13,  17,  23,  0.48);
+  --bg-surface:   rgba(22,  27,  34,  0.60);
+  --bg-elevated:  rgba(33,  38,  45,  0.68);
+  --bg-hover:     rgba(28,  33,  40,  0.70);
+  --border:       rgba(48,  54,  61,  0.70);
+  --border-strong:rgba(72,  79,  88,  0.80);
   --text-primary: #E6EDF3;
   --text-body:    #C9D1D9;
   --text-muted:   #8B949E;
-  --correct-bg:   #0D2E1A;
-  --wrong-bg:     #2E0D0D;
-  --overdue-bg:   #1C0A0A;
+  --correct-bg:   rgba(13,  46,  26,  0.65);
+  --wrong-bg:     rgba(46,  13,  13,  0.65);
+  --overdue-bg:   rgba(28,  10,  10,  0.65);
   --orb1-color:   #1D3A6A;
   --orb2-color:   #0F2D20;
   --grid-dot:     #30363D;
-  --badge-border: #0D1117;
-  --sb-track:     #0D1117;
-  --sb-thumb:     #30363D;
-  --sb-hover:     #484F58;
+  --badge-border: rgba(13,  17,  23,  0.70);
+  --sb-track:     rgba(13,  17,  23,  0.50);
+  --sb-thumb:     rgba(48,  54,  61,  0.70);
+  --sb-hover:     rgba(72,  79,  88,  0.80);
 }
 
 [data-theme="light"] {
-  --bg-main:      #F6F8FA;
-  --bg-surface:   #FFFFFF;
-  --bg-elevated:  #E8ECF0;
-  --bg-hover:     #F0F3F6;
-  --border:       #D0D7DE;
-  --border-strong:#9EA7B4;
+  --bg-main:      rgba(246, 248, 250, 0.55);
+  --bg-surface:   rgba(255, 255, 255, 0.72);
+  --bg-elevated:  rgba(232, 236, 240, 0.75);
+  --bg-hover:     rgba(240, 243, 246, 0.78);
+  --border:       rgba(208, 215, 222, 0.75);
+  --border-strong:rgba(158, 167, 180, 0.85);
   --text-primary: #1C2128;
   --text-body:    #3D444D;
   --text-muted:   #636C76;
-  --correct-bg:   #DAFBE1;
-  --wrong-bg:     #FFEBE9;
-  --overdue-bg:   #FFF8E1;
+  --correct-bg:   rgba(218, 251, 225, 0.70);
+  --wrong-bg:     rgba(255, 235, 233, 0.70);
+  --overdue-bg:   rgba(255, 248, 225, 0.70);
   --orb1-color:   #BBDEFF;
   --orb2-color:   #D4F5E3;
   --grid-dot:     #D0D7DE;
-  --badge-border: #F6F8FA;
-  --sb-track:     #F6F8FA;
-  --sb-thumb:     #D0D7DE;
-  --sb-hover:     #9EA7B4;
+  --badge-border: rgba(246, 248, 250, 0.70);
+  --sb-track:     rgba(246, 248, 250, 0.60);
+  --sb-thumb:     rgba(208, 215, 222, 0.75);
+  --sb-hover:     rgba(158, 167, 180, 0.85);
 }
 
 body {
-  background-color: var(--bg-main);
+  background-color: #0D1117;
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: color 0.25s ease, background 0.4s ease;
+}
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #EEF2FF 0%, #F0F9FF 35%, #ECFDF5 70%, #FFF7ED 100%);
+}
+
+/* ── Glass panel backdrop — add class alongside var(--bg-*) elements ─────── */
+.glass-panel {
+  backdrop-filter:         blur(22px) saturate(170%);
+  -webkit-backdrop-filter: blur(22px) saturate(170%);
+}
+[data-theme="light"] .glass-panel {
+  box-shadow: 0 4px 24px rgba(99,102,241,0.07), inset 0 1px 0 rgba(255,255,255,0.9);
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */

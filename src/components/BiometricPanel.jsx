@@ -332,7 +332,7 @@ export default function BiometricPanel({
   // ── Not connected ────────────────────────────────────────────────────────────
   if (!connected && !biometricLoading) {
     return (
-      <div style={s.page}>
+      <div style={s.page} className="glass-panel">
         <style>{CSS}</style>
         <div style={s.connectCard} className="animate-fadeIn">
           <div style={s.connectHero}>
@@ -416,7 +416,7 @@ export default function BiometricPanel({
 
   if (biometricLoading) {
     return (
-      <div style={s.page}>
+      <div style={s.page} className="glass-panel">
         <style>{CSS}</style>
         <div style={s.loadingCard}>
           <div style={{ fontSize: '2rem', animation: 'bioHeartbeat 1.2s ease-in-out infinite' }}>💓</div>

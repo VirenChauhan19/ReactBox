@@ -205,7 +205,7 @@ export default function CalendarView({
   return (
     <>
       <style>{CSS}</style>
-      <div style={s.wrap}>
+      <div style={s.wrap} className="glass-panel">
 
         {/* Top bar */}
         <div style={s.topBar}>

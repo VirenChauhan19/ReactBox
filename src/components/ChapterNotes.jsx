@@ -470,7 +470,7 @@ export default function ChapterNotes() {
   }
 
   return (
-    <div style={m.root}>
+    <div style={m.root} className="glass-panel">
       <style>{CSS}</style>
 
       {/* ── Left sidebar ─────────────────────────────────────────── */}

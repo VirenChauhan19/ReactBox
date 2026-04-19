@@ -20,6 +20,7 @@ import Controller from './components/Controller.jsx'
 import UploadScreen from './components/UploadScreen.jsx'
 import CalendarView from './components/CalendarView.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
+import ParticleCanvas from './components/ParticleCanvas.jsx'
 import ChatBot from './components/ChatBot.jsx'
 import ChapterNotes from './components/ChapterNotes.jsx'
 import BiometricPanel from './components/BiometricPanel.jsx'
@@ -360,6 +361,7 @@ export default function App({ googleEnabled = true }) {
         googleEnabled={googleEnabled}
         onAuth={handleAuth}
         onSkip={handleGuestLogin}
+        theme={theme}
       />
     )
   }
@@ -378,8 +380,15 @@ export default function App({ googleEnabled = true }) {
 
   return (
     <div style={styles.root} data-theme={theme}>
+
+      {/* ── Star field + orbs — fixed behind everything ───────────── */}
+      <ParticleCanvas style={{ position: 'fixed', zIndex: 0 }} theme={theme} />
+      <div style={{ ...styles.orb1, backgroundColor: theme === 'light' ? '#bfdbfe55' : '#1D3A6A44' }} aria-hidden />
+      <div style={{ ...styles.orb2, backgroundColor: theme === 'light' ? '#bbf7d044' : '#0F2D2033' }} aria-hidden />
+      <div style={{ ...styles.orb3, backgroundColor: theme === 'light' ? '#e9d5ff33' : '#2D1B6922' }} aria-hidden />
+
       {/* ── Top nav bar ──────────────────────────────────────────────── */}
-      <div style={styles.topBar}>
+      <div style={styles.topBar} className="glass-panel">
         <div style={styles.brand}>
           <span style={styles.brandDot} className="brand-dot-pulse" />
           <span style={styles.brandText}>Study Command Center</span>
@@ -583,11 +592,11 @@ export default function App({ googleEnabled = true }) {
           <ChapterNotes />
         </div>
       ) : view === 'focus' ? (
-        <div key="focus" style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="animate-fadeIn">
+        <div key="focus" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className="animate-fadeIn">
           <FocusHub />
         </div>
       ) : (
-        <div key="vitals" style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="animate-fadeIn">
+        <div key="vitals" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className="animate-fadeIn">
           <BiometricPanel
             biometricData={biometricData}
             biometricLoading={biometricLoading}
@@ -743,23 +752,63 @@ function DropdownItem({ icon, label, onClick, danger }) {
 
 const styles = {
   root: {
-    display: 'flex',
+    position:      'relative',
+    display:       'flex',
     flexDirection: 'column',
-    minHeight: '100vh',
-    backgroundColor: 'var(--bg-main)',
-    fontFamily: "'Inter', 'system-ui', sans-serif",
-    transition: 'background-color 0.25s ease',
+    minHeight:     '100vh',
+    backgroundColor: 'transparent',
+    fontFamily:    "'Inter', 'system-ui', sans-serif",
+  },
+  orb1: {
+    position:        'fixed',
+    width:           '600px',
+    height:          '600px',
+    borderRadius:    '50%',
+    backgroundColor: '#1D3A6A44',
+    filter:          'blur(90px)',
+    top:             '-160px',
+    left:            '-180px',
+    pointerEvents:   'none',
+    zIndex:          0,
+    animation:       'orb1 12s ease-in-out infinite',
+  },
+  orb2: {
+    position:        'fixed',
+    width:           '500px',
+    height:          '500px',
+    borderRadius:    '50%',
+    backgroundColor: '#0F2D2033',
+    filter:          'blur(90px)',
+    bottom:          '-100px',
+    right:           '-120px',
+    pointerEvents:   'none',
+    zIndex:          0,
+    animation:       'orb2 14s ease-in-out infinite',
+  },
+  orb3: {
+    position:        'fixed',
+    width:           '350px',
+    height:          '350px',
+    borderRadius:    '50%',
+    backgroundColor: '#2D1B6922',
+    filter:          'blur(80px)',
+    top:             '45%',
+    right:           '12%',
+    pointerEvents:   'none',
+    zIndex:          0,
+    animation:       'orb3 16s ease-in-out infinite',
   },
   topBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 20px',
-    height: '52px',
+    position:        'relative',
+    zIndex:          10,
+    display:         'flex',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    padding:         '0 20px',
+    height:          '52px',
     backgroundColor: 'var(--bg-surface)',
-    borderBottom: '1px solid var(--border)',
-    flexShrink: 0,
-    transition: 'background-color 0.25s ease, border-color 0.25s ease',
+    borderBottom:    '1px solid var(--border)',
+    flexShrink:      0,
   },
   brand: {
     display: 'flex',
@@ -839,43 +888,55 @@ const styles = {
     objectFit: 'cover',
   },
   layout: {
-    display: 'grid',
+    position:            'relative',
+    zIndex:              1,
+    display:             'grid',
     gridTemplateColumns: '280px 1fr 220px',
-    flex: 1,
-    backgroundColor: 'var(--bg-main)',
+    flex:                1,
+    backgroundColor:     'transparent',
   },
   panel: {
     borderRight: '1px solid var(--border)',
   },
   calLayout: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
+    position:        'relative',
+    zIndex:          1,
+    display:         'flex',
+    flex:            1,
+    overflow:        'hidden',
+    backgroundColor: 'transparent',
   },
   calSide: {
-    width: '340px',
+    width:      '340px',
     flexShrink: 0,
     borderLeft: '1px solid var(--border)',
-    overflowY: 'auto',
-    display: 'flex',
+    overflowY:  'auto',
+    display:    'flex',
     flexDirection: 'column',
   },
   chaptersLayout: {
-    display: 'flex',
-    flex: 1,
-    overflow: 'hidden',
+    position:        'relative',
+    zIndex:          1,
+    display:         'flex',
+    flex:            1,
+    overflow:        'hidden',
+    backgroundColor: 'transparent',
   },
   demoBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '12px',
-    padding: '8px 20px',
-    backgroundColor: '#E3B34118',
-    borderBottom: '1px solid #E3B34144',
-    fontSize: '0.8rem',
-    color: '#E3B341',
-    flexShrink: 0,
+    position:        'relative',
+    zIndex:          2,
+    display:         'flex',
+    alignItems:      'center',
+    justifyContent:  'space-between',
+    gap:             '12px',
+    padding:         '8px 20px',
+    backgroundColor: 'rgba(227, 179, 65, 0.10)',
+    backdropFilter:  'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)',
+    borderBottom:    '1px solid rgba(227, 179, 65, 0.30)',
+    fontSize:        '0.8rem',
+    color:           '#E3B341',
+    flexShrink:      0,
   },
   demoDismiss: {
     background: 'none',
@@ -927,16 +988,18 @@ const styles = {
     color: 'var(--text-muted)',
   },
   dropdown: {
-    position: 'absolute',
-    top: 'calc(100% + 8px)',
-    right: 0,
-    width: '240px',
-    backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border)',
-    borderRadius: '12px',
-    boxShadow: '0 16px 40px rgba(0,0,0,0.35)',
-    padding: '8px',
-    zIndex: 500,
+    position:              'absolute',
+    top:                   'calc(100% + 8px)',
+    right:                 0,
+    width:                 '240px',
+    backgroundColor:       'var(--bg-surface)',
+    backdropFilter:        'blur(28px) saturate(180%)',
+    WebkitBackdropFilter:  'blur(28px) saturate(180%)',
+    border:                '1px solid rgba(255,255,255,0.08)',
+    borderRadius:          '12px',
+    boxShadow:             '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+    padding:               '8px',
+    zIndex:                500,
   },
   dropdownHeader: {
     display: 'flex',
@@ -990,13 +1053,15 @@ const styles = {
     padding: '24px',
   },
   modalCard: {
-    backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border)',
-    borderRadius: '16px',
-    padding: '28px',
-    width: '100%',
-    maxWidth: '460px',
-    boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+    backgroundColor:      'var(--bg-surface)',
+    backdropFilter:       'blur(32px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+    border:               '1px solid rgba(255,255,255,0.09)',
+    borderRadius:         '16px',
+    padding:              '28px',
+    width:                '100%',
+    maxWidth:             '460px',
+    boxShadow:            '0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
     fontFamily: "'Inter', system-ui, sans-serif",
   },
   modalHeader: {

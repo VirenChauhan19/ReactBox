@@ -175,7 +175,7 @@ export default function Controller({
   }
 
   return (
-    <div style={s.container}>
+    <div style={s.container} className="glass-panel">
       <p style={s.panelLabel}>Controls</p>
 
       {/* ── Progress ring ──────────────────────────────────── */}

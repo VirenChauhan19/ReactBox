@@ -133,7 +133,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
 
   if (!selectedAssignment) {
     return (
-      <div style={s.container}>
+      <div style={s.container} className="glass-panel">
         <div style={s.empty}>
           <span style={s.emptyIcon}>📋</span>
           <p style={s.emptyText}>Select an assignment to view details</p>
@@ -201,7 +201,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
   const modeIcon  = { peak: '⚡', review: '📖', rest: '😴' }[studyMode]
 
   return (
-    <div key={id} style={{ ...s.container, borderLeft: `3px solid ${urgencyColor}44` }} className="animate-fadeIn">
+    <div key={id} style={{ ...s.container, borderLeft: `3px solid ${urgencyColor}44` }} className="glass-panel animate-fadeIn">
       <>
         <style>{CSS}</style>
 

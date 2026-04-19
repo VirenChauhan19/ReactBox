@@ -14,7 +14,14 @@
       "Bash(npm run *)",
       "WebFetch(domain:onetimetable.org)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBapuDutqeWEvyW3b4AbMkC_0hfgl7dfoY\" -X POST -H \"Content-Type: application/json\" -d \"{\\\\\"contents\\\\\":[{\\\\\"parts\\\\\":[{\\\\\"text\\\\\":\\\\\"hi\\\\\"}]}]}\")",
-      "Bash(curl -s http://localhost:5173)"
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(sed -n '51,56p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/CalendarView.jsx)",
+      "Bash(sed -n '51,56p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/ChapterNotes.jsx)",
+      "Bash(sed -n '94,99p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/FocusHub.jsx)",
+      "Bash(sed -n '221,226p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/BiometricPanel.jsx)",
+      "Bash(sed -n '261,266p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/FocusHub.jsx)",
+      "Bash(sed -n '256,262p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/BiometricPanel.jsx)",
+      "Bash(curl *)"
     ]
   }
 }
