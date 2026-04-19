@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 const CSS = `
 @keyframes modalIn {
@@ -264,7 +265,7 @@ export default function ManualBiometricModal({ initialDevice = 'garmin', onSave,
   const deviceOrder = ['whoop', 'garmin', 'apple', 'coros', 'polar', 'fitbit', 'other']
   let fieldDelay = 0
 
-  return (
+  return createPortal(
     <div
       style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'backdropIn 0.2s ease both' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
@@ -464,6 +465,7 @@ export default function ManualBiometricModal({ initialDevice = 'garmin', onSave,
           >{device.icon} Save & Connect</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
