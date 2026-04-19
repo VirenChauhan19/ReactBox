@@ -21,7 +21,8 @@
       "Bash(sed -n '221,226p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/BiometricPanel.jsx)",
       "Bash(sed -n '261,266p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/FocusHub.jsx)",
       "Bash(sed -n '256,262p' /c/Users/Administrator/Desktop/Github_AI201/ReactBox/src/components/BiometricPanel.jsx)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(xargs -I{} sh -c 'echo {}')"
     ]
   }
 }

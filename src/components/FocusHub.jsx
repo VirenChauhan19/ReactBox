@@ -476,9 +476,9 @@ function AmbientPlayer() {
         source.connect(gain)
       }
 
-      // Fade in
+      // Fade in — use setTargetAtTime so no lingering scheduled events block later volume changes
       gain.gain.setValueAtTime(0, ctx.currentTime)
-      gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 1.2)
+      gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.4)
 
       gain.connect(ctx.destination)
       source.start()
@@ -488,7 +488,12 @@ function AmbientPlayer() {
   }
 
   useEffect(() => {
-    if (nodesRef.current.gain) nodesRef.current.gain.gain.value = volume
+    if (nodesRef.current.gain && ctxRef.current) {
+      const param = nodesRef.current.gain.gain
+      const now = ctxRef.current.currentTime
+      param.cancelScheduledValues(now)
+      param.setValueAtTime(volume, now)
+    }
   }, [volume])
 
   useEffect(() => () => { stopAll(); ctxRef.current?.close() }, [])
