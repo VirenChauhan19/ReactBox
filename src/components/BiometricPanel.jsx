@@ -4,6 +4,9 @@ import {
   formatSleepDuration,
 } from '../utils/wearableApi.js'
 import ManualBiometricModal from './ManualBiometricModal.jsx'
+import { OpenRouter } from '@openrouter/sdk'
+
+const openrouter = new OpenRouter({ apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? '' })
 
 // ── Animation keyframes ────────────────────────────────────────────────────────
 const CSS = `
@@ -312,22 +315,15 @@ export default function BiometricPanel({
     const assignList = assignments.slice(0, 5).map(a => `${a.title} (${a.course}, due ${a.dueDate}, weight ${a.weight}%, ${a.urgency} urgency)`).join('\n')
 
     try {
-      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are a performance coach. Give sharp, actionable study advice based on biometric data and workload. 2–3 sentences max. Be specific and motivating.' },
-            { role: 'user', content: `Biometrics:\n- Recovery: ${recStr}\n- Sleep: ${sleepStr}\n- Resting HR: ${hrStr}\n- HRV: ${hrvStr}\n- Mode: ${meta?.label ?? 'unknown'}\n\nAssignments due soon:\n${assignList}\n\nGive personalized study advice for today.` },
-          ],
-        }),
+      const completion = await openrouter.chat.send({
+        model: 'openai/gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'You are a performance coach. Give sharp, actionable study advice based on biometric data and workload. 2–3 sentences max. Be specific and motivating.' },
+          { role: 'user', content: `Biometrics:\n- Recovery: ${recStr}\n- Sleep: ${sleepStr}\n- Resting HR: ${hrStr}\n- HRV: ${hrvStr}\n- Mode: ${meta?.label ?? 'unknown'}\n\nAssignments due soon:\n${assignList}\n\nGive personalized study advice for today.` },
+        ],
+        stream: false,
       })
-      const data = await res.json()
-      setInsightText((data.choices?.[0]?.message?.content ?? '').trim())
+      setInsightText((completion.choices[0]?.message?.content ?? '').trim())
     } catch { setInsightText('Could not generate insight. Check your OpenRouter API key.') }
     finally { setInsightLoading(false) }
   }

@@ -1,29 +1,21 @@
 import { useState, useEffect } from 'react'
+import { OpenRouter } from '@openrouter/sdk'
 
 const STATUS_LABEL = { 'not-started': 'Not Started', 'in-progress': 'In Progress', completed: 'Completed' }
 const STATUS_COLOR = { 'not-started': '#8B949E', 'in-progress': '#E3B341', completed: '#3FB950' }
 
+const openrouter = new OpenRouter({ apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? '' })
+
 async function callOpenRouter(system, userContent) {
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userContent },
-      ],
-    }),
+  const completion = await openrouter.chat.send({
+    model: 'openai/gpt-4o-mini',
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: userContent },
+    ],
+    stream: false,
   })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message ?? `API error ${res.status}`)
-  }
-  const data = await res.json()
-  return (data.choices?.[0]?.message?.content ?? '').trim()
+  return (completion.choices[0]?.message?.content ?? '').trim()
 }
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────
