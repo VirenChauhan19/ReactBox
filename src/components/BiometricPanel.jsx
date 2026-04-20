@@ -267,6 +267,14 @@ function ShimmerCard() {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
+function parseFocusMins(text) {
+  const hourMatch = text.match(/(\d+(?:\.\d+)?)\s*[-–]?\s*hours?/i)
+  const minMatch  = text.match(/(\d+)\s*[-–]?\s*min(?:utes?)?/i)
+  if (hourMatch) return Math.round(parseFloat(hourMatch[1]) * 60)
+  if (minMatch)  return parseInt(minMatch[1])
+  return null
+}
+
 export default function BiometricPanel({
   biometricData,
   biometricLoading,
@@ -277,6 +285,7 @@ export default function BiometricPanel({
   onRefresh,
   onDisconnect,
   googleEnabled,
+  onGoFocus,
 }) {
   const [insightText, setInsightText]             = useState('')
   const [insightLoading, setInsightLoading]       = useState(false)
@@ -629,9 +638,32 @@ export default function BiometricPanel({
         )}
 
         {insightText && !insightLoading && (
-          <div style={s.insightBox} className="animate-fadeIn">
-            <span style={{ fontSize: '1rem', flexShrink: 0 }}>🤖</span>
-            <p style={{ color: 'var(--text-body)', fontSize: '0.88rem', lineHeight: 1.6, margin: 0 }}>{insightText}</p>
+          <div className="animate-fadeIn">
+            <div style={s.insightBox}>
+              <span style={{ fontSize: '1rem', flexShrink: 0 }}>🤖</span>
+              <p style={{ color: 'var(--text-body)', fontSize: '0.88rem', lineHeight: 1.6, margin: 0 }}>{insightText}</p>
+            </div>
+            {onGoFocus && (() => {
+              const mins = parseFocusMins(insightText)
+              return (
+                <button
+                  onClick={() => onGoFocus(mins)}
+                  style={{
+                    marginTop: '10px', width: '100%', padding: '10px 0',
+                    borderRadius: '10px', border: 'none', cursor: 'pointer',
+                    background: 'linear-gradient(135deg, #58A6FF, #3B82F6)',
+                    color: '#fff', fontWeight: 700, fontSize: '0.85rem',
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    boxShadow: '0 4px 16px rgba(88,166,255,0.35)',
+                    transition: 'opacity .15s, transform .15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1';    e.currentTarget.style.transform = 'translateY(0)'    }}
+                >
+                  🎯 Start Focus Session{mins ? ` · ${mins >= 60 ? `${Math.floor(mins/60)}h${mins%60 ? ` ${mins%60}m` : ''}` : `${mins}m`}` : ''} in Focus Hub
+                </button>
+              )
+            })()}
           </div>
         )}
 

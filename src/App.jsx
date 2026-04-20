@@ -449,8 +449,8 @@ export default function App({ googleEnabled = true }) {
             { id: 'dashboard', label: '⊞ Dashboard' },
             { id: 'calendar',  label: '📅 Calendar'  },
             { id: 'chapters',  label: '📚 Chapters'  },
-            { id: 'focus',     label: '🎯 Focus Hub'  },
             { id: 'vitals',    label: '💓 Vitals',    dotColor: studyMeta?.color },
+            { id: 'focus',     label: '🎯 Focus Hub'  },
           ].map(({ id, label, dotColor }) => (
             <button
               key={id}
@@ -658,6 +658,16 @@ export default function App({ googleEnabled = true }) {
             onRefresh={handleRefreshBiometrics}
             onDisconnect={handleDisconnectBiometrics}
             googleEnabled={googleEnabled}
+            onGoFocus={mins => {
+              if (mins) {
+                try {
+                  const curr = JSON.parse(localStorage.getItem('scc_pomo_mins') ?? '{}')
+                  localStorage.setItem('scc_pomo_mins', JSON.stringify({ ...curr, work: mins }))
+                  localStorage.setItem('scc_pomo_mode', JSON.stringify('work'))
+                } catch {}
+              }
+              setView('focus')
+            }}
           />
         </div>
       )}

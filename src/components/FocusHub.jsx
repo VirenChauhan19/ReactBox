@@ -146,12 +146,22 @@ function PomodoroTimer() {
           {Object.entries(POMO_META).map(([k, m]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>{m.label}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <button onClick={() => setCustMin(p => ({ ...p, [k]: Math.max(1, (p[k] || POMO_DEFAULTS[k]) - 1) }))} style={s.stepBtn}>−</button>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: m.color, minWidth: '28px', textAlign: 'center' }}>
-                  {customMins[k] || POMO_DEFAULTS[k]}
-                </span>
-                <button onClick={() => setCustMin(p => ({ ...p, [k]: Math.min(120, (p[k] || POMO_DEFAULTS[k]) + 1) }))} style={s.stepBtn}>+</button>
+                <input
+                  type="number" min={1} max={240}
+                  value={customMins[k] || POMO_DEFAULTS[k]}
+                  onChange={e => {
+                    const v = parseInt(e.target.value)
+                    if (!isNaN(v)) setCustMin(p => ({ ...p, [k]: Math.min(240, Math.max(1, v)) }))
+                  }}
+                  style={{
+                    width: '48px', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem',
+                    color: m.color, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)',
+                    borderRadius: '6px', padding: '3px 4px', fontFamily: 'inherit', outline: 'none',
+                  }}
+                />
+                <button onClick={() => setCustMin(p => ({ ...p, [k]: Math.min(240, (p[k] || POMO_DEFAULTS[k]) + 1) }))} style={s.stepBtn}>+</button>
               </div>
             </div>
           ))}
