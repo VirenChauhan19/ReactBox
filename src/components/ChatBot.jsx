@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY ?? ''}`
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 function buildSystemPrompt(assignments, userName) {
   const today = new Date().toISOString().split('T')[0]
@@ -28,23 +28,20 @@ Your job:
 - Never make up assignment details that aren't listed above`
 }
 
-async function askGemini(systemPrompt, history, newMessage) {
-  // Build contents array from history + new message
-  const contents = [
-    ...history.map((m) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.text }],
-    })),
-    { role: 'user', parts: [{ text: newMessage }] },
+async function askOpenRouter(systemPrompt, history, newMessage) {
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...history.map((m) => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+    { role: 'user', content: newMessage },
   ]
 
-  const res = await fetch(GEMINI_URL, {
+  const res = await fetch(OPENROUTER_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: systemPrompt }] },
-      contents,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+    },
+    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
   })
 
   if (!res.ok) {
@@ -53,7 +50,7 @@ async function askGemini(systemPrompt, history, newMessage) {
   }
 
   const data = await res.json()
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+  return (data.choices?.[0]?.message?.content ?? '').trim()
 }
 
 // ── Typing indicator ──────────────────────────────────────────────────────────
@@ -190,7 +187,7 @@ export default function ChatBot({ assignments, userName }) {
     setLoading(true)
 
     try {
-      const reply = await askGemini(systemPrompt, history, msg)
+      const reply = await askOpenRouter(systemPrompt, history, msg)
       const aiMsg = { role: 'ai', text: reply, time: now() }
       setHistory((h) => [...h, aiMsg])
       if (!open) setUnread((n) => n + 1)
@@ -222,7 +219,7 @@ export default function ChatBot({ assignments, userName }) {
               <div style={s.headerDot} />
               <div>
                 <p style={s.headerTitle}>Study Assistant</p>
-                <p style={s.headerSub}>Powered by Gemini · {assignments.length} assignments loaded</p>
+                <p style={s.headerSub}>Powered by OpenRouter · {assignments.length} assignments loaded</p>
               </div>
             </div>
             <button style={s.closeBtn} onClick={() => setOpen(false)}>✕</button>
