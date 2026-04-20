@@ -1,11 +1,8 @@
 import { useState, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { OpenRouter } from '@openrouter/sdk'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
-
-const openrouter = new OpenRouter({ apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? '' })
 
 const SYSTEM_PROMPT = `You are a syllabus parser. Extract every graded assignment and deadline from the syllabus text.
 Return ONLY a valid JSON array — no markdown, no code fences, no explanation before or after.
@@ -33,30 +30,40 @@ async function extractPdfText(file) {
 
 async function callOpenRouter(userText, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const completion = await openrouter.chat.send({
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+      },
+      body: JSON.stringify({
         model: 'openai/gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userText },
         ],
-        stream: false,
-      })
-      const raw = (completion.choices[0]?.message?.content ?? '')
-        .trim()
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim()
-      const assignments = JSON.parse(raw)
-      if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
-      return assignments
-    } catch (e) {
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 8000))
-        continue
-      }
-      throw e
+      }),
+    })
+
+    if (res.status === 429 && attempt < retries) {
+      await new Promise(r => setTimeout(r, (attempt + 1) * 8000))
+      continue
     }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err?.error?.message ?? `API error ${res.status}`)
+    }
+
+    const data = await res.json()
+    const raw = (data.choices?.[0]?.message?.content ?? '')
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim()
+    const assignments = JSON.parse(raw)
+    if (!Array.isArray(assignments)) throw new Error('API did not return a JSON array')
+    return assignments
   }
 
   throw new Error('Rate limit exceeded — please wait a moment and try again.')

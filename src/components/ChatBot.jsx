@@ -1,7 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { OpenRouter } from '@openrouter/sdk'
-
-const openrouter = new OpenRouter({ apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? '' })
 
 function buildSystemPrompt(assignments, userName) {
   const today = new Date().toISOString().split('T')[0]
@@ -36,8 +33,22 @@ async function askOpenRouter(systemPrompt, history, newMessage) {
     { role: 'user', content: newMessage },
   ]
 
-  const completion = await openrouter.chat.send({ model: 'openai/gpt-4o-mini', messages, stream: false })
-  return (completion.choices[0]?.message?.content ?? '').trim()
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+    },
+    body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err?.error?.message ?? `API error ${res.status}`)
+  }
+
+  const data = await res.json()
+  return (data.choices?.[0]?.message?.content ?? '').trim()
 }
 
 // ── Typing indicator ──────────────────────────────────────────────────────────
