@@ -201,6 +201,35 @@ function modeFromRecovery(r) {
   return               { label: 'Rest Recommended', color: '#F85149', icon: '😴', desc: 'Your body needs recovery. Keep it very light.' }
 }
 
+// Devices where we calculate readiness ourselves instead of asking for it
+const COMPUTED_READINESS_DEVICES = new Set(['garmin', 'coros'])
+
+function computeReadinessFromInputs(sleepHours, sleepMins, restingHR, hrv, stress, hasStress) {
+  let score = 0, totalWeight = 0
+
+  // Sleep: 4h→0, 8h→100
+  const sleepHrs = sleepHours + sleepMins / 60
+  const sleepScore = Math.max(0, Math.min(100, (sleepHrs - 4) * 25))
+  score += sleepScore * 3; totalWeight += 3
+
+  // Resting HR: 50bpm→100, 80bpm→0
+  const hrScore = Math.max(0, Math.min(100, 150 - restingHR * 1.25))
+  score += hrScore * 2; totalWeight += 2
+
+  // HRV: 20ms→0, 80ms→100
+  if (hrv > 0) {
+    const hrvScore = Math.max(0, Math.min(100, (hrv - 20) * (100 / 60)))
+    score += hrvScore * 2; totalWeight += 2
+  }
+
+  // Stress (inverted): 0→100, 100→0
+  if (hasStress) {
+    score += (100 - stress) * 1; totalWeight += 1
+  }
+
+  return totalWeight > 0 ? Math.round(score / totalWeight) : 60
+}
+
 function Slider({ label, icon, hint, value, min, max, step = 1, unit, color, onChange, animDelay = 0 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', animation: `fieldIn 0.3s ${animDelay}ms ease both` }}>
@@ -239,7 +268,12 @@ export default function ManualBiometricModal({ initialDevice = 'garmin', onSave,
   const [sleepScore, setSleepScore] = useState(80)
 
   const device = DEVICES[deviceKey]
-  const mode   = modeFromRecovery(recovery)
+  const useComputed = COMPUTED_READINESS_DEVICES.has(deviceKey)
+  const computedReadiness = computeReadinessFromInputs(
+    sleepHours, sleepMins, restingHR, hrv, stress, device.fields.stress?.show ?? false
+  )
+  const effectiveRecovery = useComputed ? computedReadiness : recovery
+  const mode = modeFromRecovery(effectiveRecovery)
 
   // Reset fields when switching device to avoid confusing carry-over values
   useEffect(() => {
@@ -251,7 +285,7 @@ export default function ManualBiometricModal({ initialDevice = 'garmin', onSave,
     const sleepDuration = (sleepHours * 60 + sleepMins) * 60 * 1000
     onSave({
       source:        deviceKey + '-manual',
-      recoveryScore: recovery,
+      recoveryScore: effectiveRecovery,
       hrv:           device.fields.hrv?.show && hrv > 0 ? hrv : null,
       restingHR,
       sleepScore:    device.fields.sleepScore?.show ? sleepScore : null,
@@ -335,19 +369,26 @@ export default function ManualBiometricModal({ initialDevice = 'garmin', onSave,
             <div style={{ fontSize: '0.88rem', fontWeight: 700, color: mode.color }}>{mode.label}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>{mode.desc}</div>
           </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: mode.color, lineHeight: 1 }}>{recovery}%</div>
+          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: mode.color, lineHeight: 1 }}>{effectiveRecovery}%</div>
         </div>
 
         {/* ── Sliders ─────────────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          {/* Primary: recovery/readiness */}
-          <Slider
-            label={device.recoveryLabel} icon={deviceKey === 'whoop' ? '💚' : deviceKey === 'polar' ? '🔴' : deviceKey === 'fitbit' ? '📈' : '🔋'}
-            hint={device.recoveryHint} unit="%" color={mode.color}
-            value={recovery} min={0} max={100} animDelay={0}
-            onChange={setRecovery}
-          />
+          {/* Primary: recovery/readiness — hidden for devices where we compute it */}
+          {!useComputed && (
+            <Slider
+              label={device.recoveryLabel} icon={deviceKey === 'whoop' ? '💚' : deviceKey === 'polar' ? '🔴' : deviceKey === 'fitbit' ? '📈' : '🔋'}
+              hint={device.recoveryHint} unit="%" color={mode.color}
+              value={recovery} min={0} max={100} animDelay={0}
+              onChange={setRecovery}
+            />
+          )}
+          {useComputed && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '8px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+              ⚙️ Readiness is calculated automatically from your sleep, heart rate, HRV, and stress below.
+            </div>
+          )}
 
           {/* Sleep score (Whoop Performance%, Garmin score, Polar score, Fitbit score) */}
           {device.fields.sleepScore?.show && (() => { fieldDelay += 60; return (
