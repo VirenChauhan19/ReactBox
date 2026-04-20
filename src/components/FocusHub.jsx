@@ -563,6 +563,60 @@ function AmbientPlayer() {
   )
 }
 
+// ─── Scratchpad ───────────────────────────────────────────────────────────────
+function Scratchpad() {
+  const [text,   setText]   = useLS('scc_scratchpad', '')
+  const [open,   setOpen]   = useLS('scc_scratchpad_open', false)
+  const [copied, setCopied] = useState(false)
+
+  function share() {
+    const msg = `📝 Study Notes\n\nHey Yin, Bin & Lynx!\n\n${text}\n\n— shared from Study Command Center`
+    navigator.clipboard.writeText(msg).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => {})
+  }
+
+  return (
+    <div style={s.card}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{ ...s.cardHeader, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: open ? 14 : 0 }}
+      >
+        <span style={s.cardTitle}>📝 Scratchpad</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Quick notes, formulas, reminders…"
+            style={{ ...s.textInput, height: '120px', resize: 'vertical', lineHeight: 1.55 }}
+          />
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={share}
+              disabled={!text.trim()}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                backgroundColor: copied ? '#3FB950' : '#58A6FF', color: '#fff',
+                fontWeight: 600, fontSize: '0.75rem', fontFamily: 'inherit',
+                opacity: text.trim() ? 1 : 0.4, transition: 'background-color .2s, opacity .15s',
+              }}
+            >
+              {copied ? '✓ Copied to clipboard!' : '📤 Share with Yin, Bin & Lynx'}
+            </button>
+            {text && (
+              <button onClick={() => setText('')} style={{ ...s.ghostBtn, color: '#F85149', flexShrink: 0 }}>Clear</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Small helpers ────────────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children }) {
   const [hov, setHov] = useState(false)
@@ -582,31 +636,104 @@ function IconBtn({ onClick, title, children }) {
 }
 
 // ─── FocusHub (main export) ───────────────────────────────────────────────────
+const WIDGET_ORDER_DEFAULT = ['pomo', 'tasks', 'links']
+
+const WIDGET_FLEX = { pomo: '0 0 320px', tasks: '1 1 0', links: '0 0 260px' }
+const WIDGET_LABEL = { pomo: 'Timer & Sound', tasks: 'Tasks', links: 'Quick Links' }
+
 export default function FocusHub() {
+  const [order,     setOrder]     = useLS('scc_widget_order', WIDGET_ORDER_DEFAULT)
+  const [maximized, setMaximized] = useState(null)
+  const [dragOver,  setDragOver]  = useState(null)
+  const dragSrc = useRef(null)
+
+  const handleDragStart = useCallback((id) => { dragSrc.current = id }, [])
+  const handleDragEnter = useCallback((id) => setDragOver(id), [])
+  const handleDragEnd   = useCallback(() => { dragSrc.current = null; setDragOver(null) }, [])
+  const handleDrop = useCallback((targetId) => {
+    if (!dragSrc.current || dragSrc.current === targetId) return
+    setOrder(prev => {
+      const next = [...prev]
+      const from = next.indexOf(dragSrc.current)
+      const to   = next.indexOf(targetId)
+      next.splice(from, 1)
+      next.splice(to, 0, dragSrc.current)
+      return next
+    })
+    dragSrc.current = null
+    setDragOver(null)
+  }, [])
+
+  function widgetContent(id) {
+    if (id === 'pomo')  return <><PomodoroTimer /><AmbientPlayer /></>
+    if (id === 'tasks') return <><TodoWidget /><Scratchpad /></>
+    if (id === 'links') return <BookmarksWidget />
+  }
+
+  // ── Maximized view ──────────────────────────────────────────────────────────
+  if (maximized) {
+    return (
+      <div style={{
+        padding: '16px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px',
+        fontFamily: "'Inter', system-ui, sans-serif", backgroundColor: 'var(--bg-main)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            ⤢ {WIDGET_LABEL[maximized]}
+          </span>
+          <button onClick={() => setMaximized(null)} style={{ ...s.ghostBtn }}>↙ Restore Layout</button>
+        </div>
+        {widgetContent(maximized)}
+      </div>
+    )
+  }
+
+  // ── Normal grid ─────────────────────────────────────────────────────────────
   return (
     <div style={{
-      padding: '16px', overflowY: 'auto', flex: 1,
-      display: 'grid',
-      gridTemplateColumns: 'minmax(280px, 340px) 1fr minmax(220px, 280px)',
-      gridTemplateRows: 'auto 1fr',
-      gap: '14px',
-      alignItems: 'start',
+      padding: '16px', flex: 1, overflowY: 'auto',
+      display: 'flex', gap: '14px', alignItems: 'start',
       fontFamily: "'Inter', system-ui, sans-serif",
       backgroundColor: 'var(--bg-main)',
-      backdropFilter: 'blur(22px) saturate(170%)',
-      WebkitBackdropFilter: 'blur(22px) saturate(170%)',
-    }} className="focus-hub-grid">
-      {/* Col 1: Timer */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <PomodoroTimer />
-        <AmbientPlayer />
-      </div>
-
-      {/* Col 2: Todos — takes remaining space, scrollable */}
-      <TodoWidget />
-
-      {/* Col 3: Bookmarks */}
-      <BookmarksWidget />
+    }}>
+      {order.map(id => (
+        <div
+          key={id}
+          style={{
+            flex: WIDGET_FLEX[id], display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0,
+            opacity: dragOver === id && dragSrc.current !== id ? 0.5 : 1,
+            transition: 'opacity .15s',
+          }}
+          onDragOver={e => { e.preventDefault(); handleDragEnter(id) }}
+          onDrop={() => handleDrop(id)}
+        >
+          {/* Drag handle bar */}
+          <div
+            draggable
+            onDragStart={() => handleDragStart(id)}
+            onDragEnd={handleDragEnd}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '5px 10px', borderRadius: '8px', cursor: 'grab',
+              backgroundColor: 'var(--bg-elevated)', border: '1px solid var(--border)',
+              userSelect: 'none', transition: 'border-color .15s',
+              borderColor: dragOver === id && dragSrc.current !== id ? '#58A6FF' : 'var(--border)',
+            }}
+          >
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ letterSpacing: '1px', fontSize: '0.9rem', opacity: 0.5 }}>⠿</span>
+              {WIDGET_LABEL[id]}
+            </span>
+            <button
+              onMouseDown={e => e.stopPropagation()}
+              onClick={() => setMaximized(id)}
+              title="Expand"
+              style={{ ...s.ghostBtn, fontSize: '0.68rem', padding: '2px 7px' }}
+            >⤢</button>
+          </div>
+          {widgetContent(id)}
+        </div>
+      ))}
     </div>
   )
 }

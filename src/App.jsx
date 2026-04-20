@@ -77,6 +77,56 @@ const INITIAL_STATE = {
   sortBy: 'dueDate',
 }
 
+// ── Up Next panel (shown in calendar sidebar) ────────────────────────────────
+const URGENCY_DOT = { high: '#F85149', medium: '#E3B341', low: '#3FB950' }
+
+function UpNextPanel({ assignments }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+
+  const upcoming = (assignments ?? [])
+    .filter(a => a.status !== 'completed' && a.dueDate)
+    .map(a => ({ ...a, _d: new Date(a.dueDate + 'T00:00:00') }))
+    .filter(a => a._d >= today)
+    .sort((a, b) => a._d - b._d)
+    .slice(0, 6)
+
+  return (
+    <div style={{
+      backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)',
+      borderRadius: '14px', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px',
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>📌 Up Next</span>
+      {upcoming.length === 0 ? (
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textAlign: 'center', padding: '10px 0' }}>
+          🎉 Nothing due soon!
+        </div>
+      ) : upcoming.map(a => {
+        const diff = Math.round((a._d - today) / 86_400_000)
+        const urgentColor = diff === 0 ? '#F85149' : diff === 1 ? '#E3B341' : 'var(--border)'
+        const labelColor  = diff === 0 ? '#F85149' : diff === 1 ? '#E3B341' : 'var(--text-muted)'
+        const badge       = diff === 0 ? 'TODAY' : diff === 1 ? 'TMR' : a._d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return (
+          <div key={a.id} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{
+              minWidth: '44px', textAlign: 'center', padding: '4px 4px',
+              borderRadius: '8px', border: `1px solid ${urgentColor}`,
+              backgroundColor: diff <= 1 ? urgentColor + '18' : 'var(--bg-elevated)',
+            }}>
+              <span style={{ fontSize: '0.6rem', fontWeight: 800, color: labelColor, letterSpacing: '0.04em' }}>{badge}</span>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.title}</div>
+              <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)' }}>{a.course}</div>
+            </div>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: URGENCY_DOT[a.urgency] ?? '#8B949E', flexShrink: 0 }} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default function App({ googleEnabled = true }) {
   const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
   const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters' | 'vitals'
@@ -564,6 +614,7 @@ export default function App({ googleEnabled = true }) {
             />
           </div>
           <div style={styles.calSide}>
+            <UpNextPanel assignments={visibleAssignments} />
             <DetailView
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
