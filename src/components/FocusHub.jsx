@@ -429,11 +429,14 @@ function buildNoiseBuffer(ctx, type) {
   return buf
 }
 
+const LOFI_EMBED = 'https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1&controls=0&loop=1&playlist=jfKfPfyJRdk'
+
 function AmbientPlayer() {
   const [active,  setActive]  = useState(null)
   const [volume,  setVolume]  = useLS('scc_amb_vol', 0.35)
   const ctxRef   = useRef(null)
   const nodesRef = useRef({})
+  const iframeRef = useRef(null)
 
   function stopAll() {
     try { nodesRef.current.source?.stop() } catch {}
@@ -446,6 +449,10 @@ function AmbientPlayer() {
       stopAll(); setActive(null); return
     }
     stopAll()
+    setActive(id)
+
+    if (id === 'lofi') return // YouTube iframe handles playback
+
     const sound = SOUNDS.find(s => s.id === id)
     if (!sound) return
 
@@ -471,14 +478,11 @@ function AmbientPlayer() {
         source.connect(gain)
       }
 
-      // Fade in — use setTargetAtTime so no lingering scheduled events block later volume changes
       gain.gain.setValueAtTime(0, ctx.currentTime)
       gain.gain.setTargetAtTime(volume, ctx.currentTime, 0.4)
-
       gain.connect(ctx.destination)
       source.start()
       nodesRef.current = { source, gain }
-      setActive(id)
     } catch (e) { console.error('Audio error', e) }
   }
 
@@ -500,10 +504,21 @@ function AmbientPlayer() {
         {active && (
           <span style={{ fontSize: '0.68rem', color: '#3FB950', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#3FB950', display: 'inline-block', animation: 'brand-dot-pulse 1.8s ease-in-out infinite' }} />
-            Playing
+            {active === 'lofi' ? 'Lofi Girl Live' : 'Playing'}
           </span>
         )}
       </div>
+
+      {/* Hidden YouTube iframe for Lo-Fi — only mounted when active */}
+      {active === 'lofi' && (
+        <iframe
+          ref={iframeRef}
+          src={LOFI_EMBED}
+          allow="autoplay"
+          style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+          title="lofi"
+        />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginBottom: '14px' }}>
         {SOUNDS.map(sound => (
@@ -524,18 +539,25 @@ function AmbientPlayer() {
         ))}
       </div>
 
-      {/* Volume */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>🔈</span>
-        <input type="range" min={0} max={1} step={0.02} value={volume}
-          onChange={e => setVolume(Number(e.target.value))}
-          style={{ flex: 1, accentColor: '#58A6FF', cursor: 'pointer', height: '4px' }}
-        />
-        <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>🔊</span>
-        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', minWidth: '28px', textAlign: 'right' }}>
-          {Math.round(volume * 100)}%
-        </span>
-      </div>
+      {/* Volume (noise sounds only — YouTube controls its own volume) */}
+      {active !== 'lofi' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>🔈</span>
+          <input type="range" min={0} max={1} step={0.02} value={volume}
+            onChange={e => setVolume(Number(e.target.value))}
+            style={{ flex: 1, accentColor: '#58A6FF', cursor: 'pointer', height: '4px' }}
+          />
+          <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>🔊</span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', minWidth: '28px', textAlign: 'right' }}>
+            {Math.round(volume * 100)}%
+          </span>
+        </div>
+      )}
+      {active === 'lofi' && (
+        <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: 0, textAlign: 'center' }}>
+          🎵 Lofi Girl — use your system volume to adjust
+        </p>
+      )}
 
     </div>
   )
