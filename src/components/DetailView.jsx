@@ -3,15 +3,19 @@ import { useState, useEffect } from 'react'
 const STATUS_LABEL = { 'not-started': 'Not Started', 'in-progress': 'In Progress', completed: 'Completed' }
 const STATUS_COLOR = { 'not-started': '#8B949E', 'in-progress': '#E3B341', completed: '#3FB950' }
 
-async function callGemini(system, userContent) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
-  const res = await fetch(url, {
+async function callOpenRouter(system, userContent) {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+    },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: system }] },
-      contents:           [{ parts: [{ text: userContent }] }],
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userContent },
+      ],
     }),
   })
   if (!res.ok) {
@@ -19,7 +23,7 @@ async function callGemini(system, userContent) {
     throw new Error(err?.error?.message ?? `API error ${res.status}`)
   }
   const data = await res.json()
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+  return (data.choices?.[0]?.message?.content ?? '').trim()
 }
 
 // ── Quiz ─────────────────────────────────────────────────────────────────────
@@ -157,7 +161,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         'You are a study assistant. Generate clear, structured study notes for the given assignment. Use headers (##), bullet points (•), and concise language. Return plain text — no JSON.',
         modeHints.notesStyle ?? '',
       ].filter(Boolean).join(' ')
-      const result = await callGemini(
+      const result = await callOpenRouter(
         system,
         `Course: ${course}\nAssignment: ${title}\nDescription: ${description}${bioCtx}`
       )
@@ -174,7 +178,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         `You are a study assistant. Generate exactly 5 multiple choice questions for the given assignment.\nReturn ONLY a valid JSON array, no markdown, no explanation:\n[{"question":"...","choices":["A text","B text","C text","D text"],"correct":0}]\n"correct" is the zero-based index of the right answer.`,
         modeHints.quizStyle ?? '',
       ].filter(Boolean).join(' ')
-      const raw = await callGemini(
+      const raw = await callOpenRouter(
         system,
         `Course: ${course}\nAssignment: ${title}\nDescription: ${description}${bioCtx}`
       )

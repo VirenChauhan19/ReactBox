@@ -4,16 +4,19 @@ import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 
-// ── Gemini helper ────────────────────────────────────────────────────────────
-async function callGemini(system, userContent) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
-  const res = await fetch(url, {
+async function callOpenRouter(system, userContent) {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+    },
     body: JSON.stringify({
-      system_instruction: { parts: [{ text: system }] },
-      contents: [{ parts: [{ text: userContent }] }],
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userContent },
+      ],
     }),
   })
   if (!res.ok) {
@@ -21,7 +24,7 @@ async function callGemini(system, userContent) {
     throw new Error(err?.error?.message ?? `API error ${res.status}`)
   }
   const data = await res.json()
-  return (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim()
+  return (data.choices?.[0]?.message?.content ?? '').trim()
 }
 
 async function extractPdfText(file) {
@@ -131,7 +134,7 @@ function ChapterDetail({ chapter, onNotesGenerated, onQuizGenerated }) {
   async function handleGenerateNotes() {
     setNotesLoading(true); setNotesError('')
     try {
-      const result = await callGemini(
+      const result = await callOpenRouter(
         'You are an expert academic note-taker. Generate comprehensive, well-structured study notes from the provided text. Use ## headers, bullet points (•), bold key terms, and clear sections. Make the notes concise yet thorough. Return plain text — no JSON.',
         `Chapter/Class: ${chapter.name}\nCourse: ${chapter.course || 'General'}\n\nContent:\n${chapter.text.slice(0, 12000)}`
       )
@@ -144,7 +147,7 @@ function ChapterDetail({ chapter, onNotesGenerated, onQuizGenerated }) {
   async function handleGenerateQuiz() {
     setQuizLoading(true); setQuizError('')
     try {
-      const raw = await callGemini(
+      const raw = await callOpenRouter(
         `You are a study assistant. Generate exactly 6 multiple-choice questions based on the provided text.
 Return ONLY a valid JSON array, no markdown, no explanation:
 [{"question":"...","choices":["A text","B text","C text","D text"],"correct":0}]

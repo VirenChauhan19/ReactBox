@@ -305,9 +305,6 @@ export default function BiometricPanel({
   async function handleGenerateInsight() {
     if (!biometricData || !assignments?.length) return
     setInsightLoading(true); setInsightText('')
-    const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-    const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
-
     const sleepStr   = formatSleepDuration(biometricData.sleepDuration) ?? 'unknown'
     const hrStr      = biometricData.restingHR ? `${biometricData.restingHR} bpm` : 'unknown'
     const hrvStr     = biometricData.hrv ? `${Math.round(biometricData.hrv)} ms` : 'unknown'
@@ -315,17 +312,23 @@ export default function BiometricPanel({
     const assignList = assignments.slice(0, 5).map(a => `${a.title} (${a.course}, due ${a.dueDate}, weight ${a.weight}%, ${a.urgency} urgency)`).join('\n')
 
     try {
-      const res = await fetch(url, {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+        },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: 'You are a performance coach. Give sharp, actionable study advice based on biometric data and workload. 2–3 sentences max. Be specific and motivating.' }] },
-          contents: [{ parts: [{ text: `Biometrics:\n- Recovery: ${recStr}\n- Sleep: ${sleepStr}\n- Resting HR: ${hrStr}\n- HRV: ${hrvStr}\n- Mode: ${meta?.label ?? 'unknown'}\n\nAssignments due soon:\n${assignList}\n\nGive personalized study advice for today.` }] }],
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            { role: 'system', content: 'You are a performance coach. Give sharp, actionable study advice based on biometric data and workload. 2–3 sentences max. Be specific and motivating.' },
+            { role: 'user', content: `Biometrics:\n- Recovery: ${recStr}\n- Sleep: ${sleepStr}\n- Resting HR: ${hrStr}\n- HRV: ${hrvStr}\n- Mode: ${meta?.label ?? 'unknown'}\n\nAssignments due soon:\n${assignList}\n\nGive personalized study advice for today.` },
+          ],
         }),
       })
       const data = await res.json()
-      setInsightText((data.candidates?.[0]?.content?.parts?.[0]?.text ?? '').trim())
-    } catch { setInsightText('Could not generate insight. Check your Gemini API key.') }
+      setInsightText((data.choices?.[0]?.message?.content ?? '').trim())
+    } catch { setInsightText('Could not generate insight. Check your OpenRouter API key.') }
     finally { setInsightLoading(false) }
   }
 

@@ -28,26 +28,26 @@ async function extractPdfText(file) {
   return text
 }
 
-async function callGemini(userText, retries = 2) {
-  const key = import.meta.env.VITE_GEMINI_API_KEY ?? ''
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`
-
+async function callOpenRouter(userText, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch(url, {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
+      },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ parts: [{ text: userText }] }],
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userText },
+        ],
       }),
     })
 
     // Rate-limited — wait and retry
     if (res.status === 429 && attempt < retries) {
-      const err = await res.json().catch(() => ({}))
-      const retryAfter = err?.error?.details?.find(d => d.retryDelay)?.retryDelay
-      const waitMs = retryAfter ? parseFloat(retryAfter) * 1000 : (attempt + 1) * 8000
-      await new Promise(r => setTimeout(r, waitMs))
+      await new Promise(r => setTimeout(r, (attempt + 1) * 8000))
       continue
     }
 
@@ -57,7 +57,7 @@ async function callGemini(userText, retries = 2) {
     }
 
     const data = await res.json()
-    const raw = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? '')
+    const raw = (data.choices?.[0]?.message?.content ?? '')
       .trim()
       .replace(/^```(?:json)?\s*/i, '')
       .replace(/\s*```$/, '')
@@ -88,7 +88,7 @@ export default function UploadScreen({ onAssignmentsLoaded, onClose }) {
       const texts = await Promise.all(files.map(extractPdfText))
 
       setPhase('parsing')
-      const results = await Promise.all(texts.map(callGemini))
+      const results = await Promise.all(texts.map(callOpenRouter))
       const assignments = results.flat()
 
       onAssignmentsLoaded(assignments)
@@ -124,7 +124,7 @@ export default function UploadScreen({ onAssignmentsLoaded, onClose }) {
 
         <h1 style={s.heading}>Upload Your Syllabus</h1>
         <p style={s.sub}>
-          Drop a PDF syllabus and Gemini will extract all your assignments
+          Drop a PDF syllabus and AI will extract all your assignments
           automatically.
         </p>
 
@@ -154,7 +154,7 @@ export default function UploadScreen({ onAssignmentsLoaded, onClose }) {
             <div style={s.loadingInner}>
               <div style={s.spinner} />
               <p style={s.loadingLabel}>
-                {phase === 'reading' ? 'Reading PDF…' : 'Parsing with Gemini…'}
+                {phase === 'reading' ? 'Reading PDF…' : 'Parsing with AI…'}
               </p>
               {fileName && <p style={s.fileName}>{fileName}</p>}
             </div>
@@ -176,7 +176,7 @@ export default function UploadScreen({ onAssignmentsLoaded, onClose }) {
             <span style={s.errorHint}>
               {error.includes('quota') || error.includes('429') || error.includes('Rate limit')
                 ? 'Free tier rate limit hit — wait 15–30 seconds and try again.'
-                : 'Make sure VITE_GEMINI_API_KEY is set in your .env file.'}
+                : 'Make sure VITE_OPENROUTER_API_KEY is set in your .env file.'}
             </span>
           </div>
         )}
