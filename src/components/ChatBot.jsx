@@ -41,7 +41,7 @@ async function askOpenRouter(systemPrompt, history, newMessage) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
     },
-    body: JSON.stringify({ model: 'google/gemini-2.5-flash', messages }),
+    body: JSON.stringify({ model: 'openai/gpt-4o-mini', messages }),
   })
 
   if (!res.ok) {

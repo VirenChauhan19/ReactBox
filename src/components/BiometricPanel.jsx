@@ -319,7 +319,7 @@ export default function BiometricPanel({
           'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'openai/gpt-4o-mini',
           messages: [
             { role: 'system', content: 'You are a performance coach. Give sharp, actionable study advice based on biometric data and workload. 2–3 sentences max. Be specific and motivating.' },
             { role: 'user', content: `Biometrics:\n- Recovery: ${recStr}\n- Sleep: ${sleepStr}\n- Resting HR: ${hrStr}\n- HRV: ${hrvStr}\n- Mode: ${meta?.label ?? 'unknown'}\n\nAssignments due soon:\n${assignList}\n\nGive personalized study advice for today.` },

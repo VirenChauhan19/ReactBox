@@ -11,7 +11,7 @@ async function callOpenRouter(system, userContent) {
       'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY ?? ''}`,
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
+      model: 'openai/gpt-4o-mini',
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userContent },
