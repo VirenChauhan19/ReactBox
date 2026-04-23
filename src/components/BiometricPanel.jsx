@@ -464,166 +464,133 @@ export default function BiometricPanel({
     : null
 
   return (
-    <div style={s.page}>
+    <div style={{ ...s.page, flexDirection: 'row', padding: 0, gap: 0 }} className="bio-page-connected">
       <style>{CSS}</style>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={s.header}>
-        <div style={s.headerLeft}>
-          <span style={{ fontSize: '1.1rem' }}>💓</span>
-          <span style={s.headerTitle}>Biometric Readiness</span>
-          {syncedAgo && (
-            <span style={s.syncTag}>via {sourceLabel} · {syncedAgo}</span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {biometricData?.source?.endsWith('-manual') && (
+      {/* ── Left column: metrics + recommendations ───────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+        {/* Header */}
+        <div style={s.header}>
+          <div style={s.headerLeft}>
+            <span style={{ fontSize: '1.1rem' }}>💓</span>
+            <span style={s.headerTitle}>Biometric Readiness</span>
+            {syncedAgo && (
+              <span style={s.syncTag}>via {sourceLabel} · {syncedAgo}</span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {biometricData?.source?.endsWith('-manual') && (
+              <button
+                style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: '#58A6FF', borderColor: '#58A6FF55' }}
+                onClick={() => setManualDevice(biometricData.source.replace('-manual', ''))}
+                title="Update stats"
+              >✏️ Update</button>
+            )}
             <button
-              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: '#58A6FF', borderColor: '#58A6FF55' }}
-              onClick={() => setManualDevice(biometricData.source.replace('-manual', ''))}
-              title="Update stats"
-            >✏️ Update</button>
-          )}
-          <button
-            ref={refreshBtnRef}
-            className="bio-refresh-btn"
-            style={s.iconBtn}
-            onClick={handleRefresh}
-            disabled={refreshing}
-            title="Refresh biometric data"
-          >↻</button>
-          {confirmDisconnect ? (
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', animation: 'bioCardIn 0.2s ease both' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Disconnect?</span>
+              ref={refreshBtnRef}
+              className="bio-refresh-btn"
+              style={s.iconBtn}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              title="Refresh biometric data"
+            >↻</button>
+            {confirmDisconnect ? (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', animation: 'bioCardIn 0.2s ease both' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Disconnect?</span>
+                <button
+                  style={{ ...s.iconBtn, color: '#F85149', borderColor: '#F8514966', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700 }}
+                  onClick={() => { onDisconnect?.(); setConfirmDisconnect(false) }}
+                >Yes</button>
+                <button
+                  style={{ ...s.iconBtn, padding: '4px 10px', fontSize: '0.78rem' }}
+                  onClick={() => setConfirmDisconnect(false)}
+                >No</button>
+              </div>
+            ) : (
               <button
-                style={{ ...s.iconBtn, color: '#F85149', borderColor: '#F8514966', padding: '4px 10px', fontSize: '0.78rem', fontWeight: 700 }}
-                onClick={() => { onDisconnect?.(); setConfirmDisconnect(false) }}
-              >Yes</button>
-              <button
-                style={{ ...s.iconBtn, padding: '4px 10px', fontSize: '0.78rem' }}
-                onClick={() => setConfirmDisconnect(false)}
-              >No</button>
+                style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-muted)' }}
+                onClick={() => setConfirmDisconnect(true)}
+                title={`Disconnect ${sourceLabel}`}
+              >Disconnect</button>
+            )}
+          </div>
+        </div>
+
+        {/* Main metrics row */}
+        <div style={s.mainRow}>
+          <div style={s.ringSection}>
+            <ReadinessRing readiness={readiness} mode={mode} />
+            {meta && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '160px', lineHeight: 1.5, marginTop: '4px' }}>
+                {meta.short}
+              </p>
+            )}
+          </div>
+          <div style={s.metricsGrid}>
+            <MetricCard icon="💤" label="Sleep" delay={100} value={sleepLabel} sub={sleepSub} color="#BC8CFF" />
+            <MetricCard icon="❤️" label="Resting HR" delay={200} value={biometricData.restingHR ? `${biometricData.restingHR}` : null} sub="bpm" color="#F85149" pulse />
+            <MetricCard icon="〽️" label="HRV" delay={300} value={biometricData.hrv ? `${Math.round(biometricData.hrv)}` : null} sub="ms" color="#58A6FF" />
+            {biometricData.strain !== null && (
+              <MetricCard icon="🔥" label="Strain" delay={400} value={biometricData.strain?.toFixed(1)} sub="/ 21" color="#E3B341" />
+            )}
+            {biometricData.stressLevel !== null && biometricData.stressLevel !== undefined && (
+              <MetricCard icon="🧠" label="Stress" delay={450} value={biometricData.stressLevel} sub="/ 100"
+                color={biometricData.stressLevel > 66 ? '#F85149' : biometricData.stressLevel > 33 ? '#E3B341' : '#3FB950'} />
+            )}
+          </div>
+        </div>
+
+        {/* Smart recommendations */}
+        <div style={s.section}>
+          <div style={s.sectionHeader}>
+            <span style={s.sectionTitle}>Smart Recommendations</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>based on your readiness</span>
+          </div>
+          {mode === 'rest' && !tackleNow.length && (
+            <div style={s.restBanner} className="animate-fadeIn">
+              <span style={{ fontSize: '1.5rem', animation: 'bioBreathe 3s ease-in-out infinite' }}>😴</span>
+              <p style={{ color: '#F85149', fontSize: '0.85rem', fontWeight: 600 }}>Your body is in recovery mode. Avoid heavy studying today.</p>
             </div>
-          ) : (
-            <button
-              style={{ ...s.iconBtn, fontSize: '0.75rem', padding: '4px 10px', color: 'var(--text-muted)' }}
-              onClick={() => setConfirmDisconnect(true)}
-              title={`Disconnect ${sourceLabel}`}
-            >Disconnect</button>
+          )}
+          {tackleNow.length > 0 && (
+            <div style={s.recGroup}>
+              <span style={s.recGroupLabel}>⚡ Tackle Now</span>
+              {tackleNow.map((a, i) => (
+                <RecommendationRow key={a.id} assignment={a}
+                  tag="Focus" tagColor={meta?.color ?? '#58A6FF'} tagBg={(meta?.color ?? '#58A6FF') + '18'} delay={i * 80} />
+              ))}
+            </div>
+          )}
+          {later.length > 0 && (
+            <div style={s.recGroup}>
+              <span style={s.recGroupLabel}>📅 Schedule Later</span>
+              {later.map((a, i) => (
+                <RecommendationRow key={a.id} assignment={a}
+                  tag="Later" tagColor="#8B949E" tagBg="var(--bg-elevated)"
+                  delay={tackleNow.length * 80 + i * 60} />
+              ))}
+            </div>
+          )}
+          {assignments.filter(a => a.status === 'completed').length > 0 && (
+            <div style={s.recGroup}>
+              <span style={s.recGroupLabel}>✓ Completed</span>
+              {assignments.filter(a => a.status === 'completed').map((a, i) => (
+                <RecommendationRow key={a.id} assignment={a}
+                  tag="Done" tagColor="#3FB950" tagBg="#3FB95018" delay={200 + i * 60} />
+              ))}
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Main metrics row ────────────────────────────────────────────────── */}
-      <div style={s.mainRow}>
-        {/* Readiness ring */}
-        <div style={s.ringSection}>
-          <ReadinessRing readiness={readiness} mode={mode} />
-          {meta && (
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', maxWidth: '160px', lineHeight: 1.5, marginTop: '4px' }}>
-              {meta.short}
-            </p>
-          )}
-        </div>
-
-        {/* Metric cards */}
-        <div style={s.metricsGrid}>
-          <MetricCard
-            icon="💤" label="Sleep" delay={100}
-            value={sleepLabel}
-            sub={sleepSub}
-            color="#BC8CFF"
-          />
-          <MetricCard
-            icon="❤️" label="Resting HR" delay={200}
-            value={biometricData.restingHR ? `${biometricData.restingHR}` : null}
-            sub="bpm"
-            color="#F85149"
-            pulse
-          />
-          <MetricCard
-            icon="〽️" label="HRV" delay={300}
-            value={biometricData.hrv ? `${Math.round(biometricData.hrv)}` : null}
-            sub="ms"
-            color="#58A6FF"
-          />
-          {biometricData.strain !== null && (
-            <MetricCard
-              icon="🔥" label="Strain" delay={400}
-              value={biometricData.strain?.toFixed(1)}
-              sub="/ 21"
-              color="#E3B341"
-            />
-          )}
-          {biometricData.stressLevel !== null && biometricData.stressLevel !== undefined && (
-            <MetricCard
-              icon="🧠" label="Stress" delay={450}
-              value={biometricData.stressLevel}
-              sub="/ 100"
-              color={biometricData.stressLevel > 66 ? '#F85149' : biometricData.stressLevel > 33 ? '#E3B341' : '#3FB950'}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* ── Smart recommendations ────────────────────────────────────────────── */}
-      <div style={s.section}>
-        <div style={s.sectionHeader}>
-          <span style={s.sectionTitle}>Smart Recommendations</span>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>based on your readiness</span>
-        </div>
-
-        {mode === 'rest' && !tackleNow.length && (
-          <div style={s.restBanner} className="animate-fadeIn">
-            <span style={{ fontSize: '1.5rem', animation: 'bioBreathe 3s ease-in-out infinite' }}>😴</span>
-            <p style={{ color: '#F85149', fontSize: '0.85rem', fontWeight: 600 }}>Your body is in recovery mode. Avoid heavy studying today.</p>
+      {/* ── Right column: AI Coach Insight ───────────────────────────────── */}
+      <div style={s.aiSidebar} className="bio-ai-sidebar">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '1rem' }}>🤖</span>
+            <span style={s.sectionTitle}>AI Coach</span>
           </div>
-        )}
-
-        {tackleNow.length > 0 && (
-          <div style={s.recGroup}>
-            <span style={s.recGroupLabel}>⚡ Tackle Now</span>
-            {tackleNow.map((a, i) => (
-              <RecommendationRow
-                key={a.id} assignment={a}
-                tag="Focus" tagColor={meta?.color ?? '#58A6FF'} tagBg={(meta?.color ?? '#58A6FF') + '18'}
-                delay={i * 80}
-              />
-            ))}
-          </div>
-        )}
-
-        {later.length > 0 && (
-          <div style={s.recGroup}>
-            <span style={s.recGroupLabel}>📅 Schedule Later</span>
-            {later.map((a, i) => (
-              <RecommendationRow
-                key={a.id} assignment={a}
-                tag="Later" tagColor="#8B949E" tagBg="var(--bg-elevated)"
-                delay={tackleNow.length * 80 + i * 60}
-              />
-            ))}
-          </div>
-        )}
-
-        {assignments.filter(a => a.status === 'completed').length > 0 && (
-          <div style={s.recGroup}>
-            <span style={s.recGroupLabel}>✓ Completed</span>
-            {assignments.filter(a => a.status === 'completed').map((a, i) => (
-              <RecommendationRow
-                key={a.id} assignment={a}
-                tag="Done" tagColor="#3FB950" tagBg="#3FB95018"
-                delay={200 + i * 60}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── AI Insight ───────────────────────────────────────────────────────── */}
-      <div style={s.section}>
-        <div style={s.sectionHeader}>
-          <span style={s.sectionTitle}>AI Coach Insight</span>
           <button
             style={s.insightBtn}
             onClick={handleGenerateInsight}
@@ -634,14 +601,13 @@ export default function BiometricPanel({
         </div>
 
         {insightLoading && (
-          <div style={{ ...s.insightBox, background: 'linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%)', backgroundSize: '400px 100%', animation: 'bioShimmer 1.4s infinite linear', minHeight: '60px' }} />
+          <div style={{ ...s.insightBox, background: 'linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%)', backgroundSize: '400px 100%', animation: 'bioShimmer 1.4s infinite linear', minHeight: '80px', border: 'none' }} />
         )}
 
         {insightText && !insightLoading && (
-          <div className="animate-fadeIn">
-            <div style={s.insightBox}>
-              <span style={{ fontSize: '1rem', flexShrink: 0 }}>🤖</span>
-              <p style={{ color: 'var(--text-body)', fontSize: '0.88rem', lineHeight: 1.6, margin: 0 }}>{insightText}</p>
+          <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ ...s.insightBox, flexDirection: 'column', gap: '10px' }}>
+              <p style={{ color: 'var(--text-body)', fontSize: '0.87rem', lineHeight: 1.65, margin: 0 }}>{insightText}</p>
             </div>
             {onGoFocus && (() => {
               const mins = parseFocusMins(insightText)
@@ -649,16 +615,14 @@ export default function BiometricPanel({
                 <button
                   onClick={() => onGoFocus(mins)}
                   style={{
-                    marginTop: '10px', width: '100%', padding: '10px 0',
-                    borderRadius: '10px', border: 'none', cursor: 'pointer',
+                    width: '100%', padding: '10px 0', borderRadius: '10px', border: 'none', cursor: 'pointer',
                     background: 'linear-gradient(135deg, #58A6FF, #3B82F6)',
-                    color: '#fff', fontWeight: 700, fontSize: '0.85rem',
+                    color: '#fff', fontWeight: 700, fontSize: '0.83rem',
                     fontFamily: "'Inter', system-ui, sans-serif",
-                    boxShadow: '0 4px 16px rgba(88,166,255,0.35)',
-                    transition: 'opacity .15s, transform .15s',
+                    boxShadow: '0 4px 16px rgba(88,166,255,0.3)', transition: 'opacity .15s, transform .15s',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = '1';    e.currentTarget.style.transform = 'translateY(0)'    }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
                 >
                   🎯 Start Focus Session{mins ? ` · ${mins >= 60 ? `${Math.floor(mins/60)}h${mins%60 ? ` ${mins%60}m` : ''}` : `${mins}m`}` : ''} in Focus Hub
                 </button>
@@ -668,9 +632,18 @@ export default function BiometricPanel({
         )}
 
         {!insightText && !insightLoading && (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', padding: '8px 0' }}>
-            Get a personalized study plan based on your biometrics and deadlines.
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.83rem', lineHeight: 1.6, margin: 0 }}>
+              Get a personalized study plan based on your biometrics and current workload.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {['🧠 Optimal study window', '⚡ Energy level analysis', '📅 Deadline prioritization'].map((tip, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 10px', borderRadius: '8px', backgroundColor: 'var(--bg-elevated)', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {tip}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
@@ -890,6 +863,16 @@ const s = {
     borderRadius:    '10px',
     backgroundColor: '#F8514918',
     border:          '1px solid #F8514944',
+  },
+  aiSidebar: {
+    width:         '300px',
+    flexShrink:    0,
+    borderLeft:    '1px solid var(--border)',
+    padding:       '24px',
+    overflowY:     'auto',
+    display:       'flex',
+    flexDirection: 'column',
+    backgroundColor: 'var(--bg-surface)',
   },
   insightBtn: {
     fontSize:        '0.78rem',

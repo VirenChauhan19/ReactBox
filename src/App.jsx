@@ -133,6 +133,7 @@ export default function App({ googleEnabled = true }) {
   const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
   const [isDemoData, setIsDemoData] = useState(true)
   const [mobileDashPanel, setMobileDashPanel] = useState('list')
+  const [calSideTab,     setCalSideTab]     = useState('details') // 'details' | 'upnext' | 'filter'
 
   // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
   useEffect(() => {
@@ -385,6 +386,12 @@ export default function App({ googleEnabled = true }) {
     setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, status: 'completed' } : a)))
   }
 
+  function handleToggleComplete(id) {
+    setAssignments((prev) => prev.map((a) =>
+      a.id === id ? { ...a, status: a.status === 'completed' ? 'in-progress' : 'completed' } : a
+    ))
+  }
+
   function handleNotesGenerated(id, notes) {
     setAssignments((prev) => prev.map((a) => (a.id === id ? { ...a, notes } : a)))
   }
@@ -612,30 +619,63 @@ export default function App({ googleEnabled = true }) {
               customEvents={customEvents}
               onAddCustomEvent={handleAddCustomEvent}
               onDeleteCustomEvent={handleDeleteCustomEvent}
+              onMarkComplete={handleToggleComplete}
             />
           </div>
           <div style={styles.calSide} className="scc-cal-side">
-            <UpNextPanel assignments={visibleAssignments} />
-            <DetailView
-              selectedAssignment={selectedAssignmentObj}
-              onNotesGenerated={handleNotesGenerated}
-              onQuizGenerated={handleQuizGenerated}
-              biometricData={biometricData}
-              studyMode={studyMode}
-            />
-            <div style={{ borderTop: '1px solid var(--border)' }}>
-              <Controller
-                assignments={assignments}
-                filteredAssignments={visibleAssignments}
-                filterCourse={filterCourse}
-                filterStatus={filterStatus}
-                sortBy={sortBy}
-                selectedAssignment={selectedAssignment}
-                onFilterCourse={setFilterCourse}
-                onFilterStatus={setFilterStatus}
-                onSortBy={setSortBy}
-                onMarkComplete={handleMarkComplete}
-              />
+            {/* ── Sidebar tab bar ─────────────────────────────────── */}
+            <div style={{
+              display: 'flex', borderBottom: '1px solid var(--border)',
+              flexShrink: 0, backgroundColor: 'var(--bg-surface)',
+              position: 'sticky', top: 0, zIndex: 5,
+            }}>
+              {[
+                { id: 'details', label: '📄 Details' },
+                { id: 'upnext',  label: '📌 Up Next' },
+                { id: 'filter',  label: '⚙ Filter'   },
+              ].map(({ id, label }) => (
+                <button key={id} onClick={() => setCalSideTab(id)} style={{
+                  flex: 1, padding: '10px 6px', background: 'none',
+                  border: 'none', borderBottom: calSideTab === id ? '2px solid #58A6FF' : '2px solid transparent',
+                  color: calSideTab === id ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Inter', system-ui, sans-serif",
+                  marginBottom: '-1px', transition: 'color .15s',
+                }}>{label}</button>
+              ))}
+            </div>
+
+            {/* ── Tab content ─────────────────────────────────────── */}
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {calSideTab === 'details' && (
+                <DetailView
+                  compact
+                  selectedAssignment={selectedAssignmentObj}
+                  onNotesGenerated={handleNotesGenerated}
+                  onQuizGenerated={handleQuizGenerated}
+                  biometricData={biometricData}
+                  studyMode={studyMode}
+                />
+              )}
+              {calSideTab === 'upnext' && (
+                <div style={{ padding: '14px' }}>
+                  <UpNextPanel assignments={visibleAssignments} />
+                </div>
+              )}
+              {calSideTab === 'filter' && (
+                <Controller
+                  assignments={assignments}
+                  filteredAssignments={visibleAssignments}
+                  filterCourse={filterCourse}
+                  filterStatus={filterStatus}
+                  sortBy={sortBy}
+                  selectedAssignment={selectedAssignment}
+                  onFilterCourse={setFilterCourse}
+                  onFilterStatus={setFilterStatus}
+                  onSortBy={setSortBy}
+                  onMarkComplete={handleMarkComplete}
+                />
+              )}
             </div>
           </div>
         </div>

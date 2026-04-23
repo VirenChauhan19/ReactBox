@@ -199,6 +199,34 @@
         }
       }
 
+      /* ── Vitals: AI Coach stacks below on mobile ─────────────── */
+      @media (max-width: 768px) {
+        .bio-page-connected {
+          flex-direction: column !important;
+          overflow-y: auto !important;
+        }
+        .bio-ai-sidebar {
+          width: 100% !important;
+          border-left: none !important;
+          border-top: 1px solid var(--border) !important;
+          flex-shrink: 0 !important;
+          max-height: 260px !important;
+          overflow-y: auto !important;
+          background: none !important;
+        }
+      }
+
+      /* ── DetailView: tighter padding + full-width buttons on mobile ── */
+      @media (max-width: 768px) {
+        .detail-container {
+          padding: 16px 14px !important;
+        }
+        .detail-container h1 {
+          font-size: 1.35rem !important;
+          margin-bottom: 14px !important;
+        }
+      }
+
       /* Smooth range input */
       input[type=range] {
         -webkit-appearance: none;

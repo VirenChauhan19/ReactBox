@@ -118,6 +118,69 @@ function QuizView({ questions }) {
   )
 }
 
+// ── Notes renderer ───────────────────────────────────────────────────────────
+function parseBold(text) {
+  const parts = text.split(/\*\*(.*?)\*\*/g)
+  if (parts.length === 1) return text
+  return parts.map((p, i) => i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{p}</strong> : p)
+}
+
+function renderNotes(text) {
+  if (!text) return null
+  const lines = text.split('\n')
+  const out = []
+  let listItems = []
+  let k = 0
+
+  function flushList() {
+    if (!listItems.length) return
+    out.push(
+      <ul key={`ul${k++}`} style={{ margin: '2px 0 12px', paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '5px', listStyle: 'none' }}>
+        {listItems.map((item, i) => (
+          <li key={i} style={{ fontSize: '0.87rem', color: 'var(--text-body)', lineHeight: 1.65, display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+            <span style={{ color: '#58A6FF', fontWeight: 700, flexShrink: 0, marginTop: '1px' }}>·</span>
+            <span>{parseBold(item)}</span>
+          </li>
+        ))}
+      </ul>
+    )
+    listItems = []
+  }
+
+  lines.forEach(line => {
+    const t = line.trim()
+    if (!t) { flushList(); return }
+
+    if (t.startsWith('### ')) {
+      flushList()
+      out.push(<h4 key={k++} style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '16px 0 6px' }}>{t.slice(4)}</h4>)
+    } else if (t.startsWith('## ')) {
+      flushList()
+      out.push(<h3 key={k++} style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '18px 0 8px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>{t.slice(3)}</h3>)
+    } else if (t.startsWith('# ')) {
+      flushList()
+      out.push(<h2 key={k++} style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: '20px 0 10px' }}>{t.slice(2)}</h2>)
+    } else if (/^[•\-\*] /.test(t)) {
+      listItems.push(t.slice(2))
+    } else if (/^\d+\. /.test(t)) {
+      const content = t.replace(/^\d+\.\s*/, '')
+      const num = t.match(/^(\d+)/)?.[1]
+      flushList()
+      out.push(
+        <div key={k++} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '6px' }}>
+          <span style={{ minWidth: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#58A6FF22', color: '#58A6FF', fontSize: '0.68rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>{num}</span>
+          <span style={{ fontSize: '0.87rem', color: 'var(--text-body)', lineHeight: 1.65 }}>{parseBold(content)}</span>
+        </div>
+      )
+    } else {
+      flushList()
+      out.push(<p key={k++} style={{ margin: '0 0 8px', fontSize: '0.87rem', color: 'var(--text-body)', lineHeight: 1.7 }}>{parseBold(t)}</p>)
+    }
+  })
+  flushList()
+  return out
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 const STUDY_MODE_HINTS = {
   peak:   { notesStyle: 'Go deep — include advanced details, edge cases, and exam traps. This student is in peak cognitive state.',   quizStyle: 'Make the questions challenging with nuanced answer choices.' },
@@ -125,7 +188,7 @@ const STUDY_MODE_HINTS = {
   rest:   { notesStyle: 'Keep it very brief and simple. Bullet-point the most essential 3–5 facts only. Avoid overwhelming detail.', quizStyle: 'Use straightforward recall questions only.'                         },
 }
 
-export default function DetailView({ selectedAssignment, onNotesGenerated, onQuizGenerated, biometricData, studyMode }) {
+export default function DetailView({ selectedAssignment, onNotesGenerated, onQuizGenerated, biometricData, studyMode, compact }) {
   const [notesLoading, setNotesLoading] = useState(false)
   const [quizLoading,  setQuizLoading]  = useState(false)
   const [notesError,   setNotesError]   = useState('')
@@ -204,8 +267,82 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
   const modeColor = { peak: '#3FB950', review: '#E3B341', rest: '#F85149' }[studyMode]
   const modeIcon  = { peak: '⚡', review: '📖', rest: '😴' }[studyMode]
 
+  // ── Compact mode (calendar sidebar) ─────────────────────────────────────────
+  if (compact) {
+    return (
+      <div key={id} style={{ padding: '14px 16px', fontFamily: "'Inter', system-ui, sans-serif", color: 'var(--text-primary)', height: '100%', display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', boxSizing: 'border-box' }} className="animate-fadeIn">
+        <style>{CSS}</style>
+
+        {/* Header row: course + status */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: urgencyColor, boxShadow: `0 0 6px ${urgencyColor}`, flexShrink: 0 }} />
+            <span style={{ fontSize: '0.63rem', fontWeight: 800, color: '#58A6FF', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{course}</span>
+          </div>
+          <span style={{ fontSize: '0.62rem', fontWeight: 700, padding: '2px 8px', borderRadius: '99px', backgroundColor: statusColor + '22', color: statusColor, border: `1px solid ${statusColor}44` }}>
+            {STATUS_LABEL[status] ?? status}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25, letterSpacing: '-0.01em', textDecoration: status === 'completed' ? 'line-through' : 'none', opacity: status === 'completed' ? 0.5 : 1 }}>
+          {title}
+        </h2>
+
+        {/* Inline meta: urgency pill + date + weight */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '3px 8px', borderRadius: '6px', backgroundColor: urgencyColor + '18', color: urgencyColor, border: `1px solid ${urgencyColor}33` }}>
+            {isPast ? 'LATE' : daysLeft === 0 ? 'TODAY' : `${daysLeft}d left`}
+          </span>
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>{dueDateFmt}</span>
+          {weight > 0 && <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 500 }}>· {weight}%</span>}
+          {studyMode && <span style={{ fontSize: '0.68rem', fontWeight: 700, color: modeColor }}>{modeIcon} {studyMode}</span>}
+        </div>
+
+        {/* Description – 3-line clamp */}
+        {description && (
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-body)', lineHeight: 1.6, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {description}
+          </p>
+        )}
+
+        {/* Compact action buttons */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {[
+            { label: 'Notes', icon: '📝', loading: notesLoading, color: '#58A6FF', onClick: handleGenerateNotes },
+            { label: 'Quiz',  icon: '🎯', loading: quizLoading,  color: '#BC8CFF', onClick: handleGenerateQuiz  },
+          ].map(({ label, icon, loading, color, onClick }) => (
+            <CompactBtn key={label} icon={icon} label={label} loading={loading} disabled={notesLoading || quizLoading} color={color} onClick={onClick} />
+          ))}
+        </div>
+
+        {(notesError || quizError) && <ErrorBox msg={notesError || quizError} />}
+
+        {/* Tabs + content – grows to fill */}
+        {(notes || (quiz && quiz.length > 0)) && (
+          <>
+            <div style={{ display: 'flex', gap: '2px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              {notes            && <TabBtn active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>📝 Notes</TabBtn>}
+              {quiz?.length > 0 && <TabBtn active={activeTab === 'quiz'}  onClick={() => setActiveTab('quiz')}>🎯 Quiz</TabBtn>}
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {activeTab === 'notes' && notes && (
+                <div key="notes" className="animate-fadeIn" style={{ ...s.notesBlock, margin: 0, border: 'none', padding: '4px 0', background: 'none' }}>
+                  {renderNotes(notes)}
+                </div>
+              )}
+              {activeTab === 'quiz' && quiz?.length > 0 && (
+                <div key="quiz" className="animate-slideUp"><QuizView questions={quiz} /></div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div key={id} style={{ ...s.container, borderLeft: `3px solid ${urgencyColor}44` }} className="glass-panel animate-fadeIn">
+    <div key={id} style={{ ...s.container, borderLeft: `3px solid ${urgencyColor}44` }} className="glass-panel animate-fadeIn detail-container">
       <>
         <style>{CSS}</style>
 
@@ -284,7 +421,9 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         )}
 
         {activeTab === 'notes' && notes && (
-          <div key="notes" className="animate-fadeIn" style={s.notesBlock}>{notes}</div>
+          <div key="notes" className="animate-fadeIn" style={s.notesBlock}>
+            {renderNotes(notes)}
+          </div>
         )}
         {activeTab === 'quiz' && quiz?.length > 0 && (
           <div key="quiz" className="animate-slideUp"><QuizView questions={quiz} /></div>
@@ -295,6 +434,29 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+function CompactBtn({ label, icon, loading, disabled, color, onClick }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+        padding: '7px 10px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700,
+        fontFamily: "'Inter', system-ui, sans-serif", cursor: disabled ? 'default' : 'pointer',
+        border: `1px solid ${hov && !disabled ? color + '88' : color + '33'}`,
+        backgroundColor: hov && !disabled ? color + '18' : 'var(--bg-surface)',
+        color: hov && !disabled ? color : 'var(--text-body)',
+        opacity: disabled ? 0.45 : 1,
+        transition: 'all .15s ease',
+      }}
+      disabled={disabled} onClick={onClick}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    >
+      {loading ? <span style={s.spinner} /> : <span style={{ fontSize: '0.85rem' }}>{icon}</span>}
+      {loading ? 'Working…' : label}
+    </button>
+  )
+}
+
 function GlowButton({ label, icon, loading, disabled, color, onClick }) {
   const [hov, setHov] = useState(false)
   return (
@@ -514,11 +676,7 @@ const s = {
     backgroundColor: 'var(--bg-surface)',
     border: '1px solid var(--border)',
     borderRadius: '12px',
-    padding: '18px',
-    fontSize: '0.85rem',
-    color: 'var(--text-body)',
-    lineHeight: 1.8,
-    whiteSpace: 'pre-wrap',
+    padding: '20px',
     fontFamily: "'Inter', system-ui, sans-serif",
     overflowX: 'auto',
     transition: 'background-color 0.25s ease, border-color 0.25s ease',

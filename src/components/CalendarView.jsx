@@ -101,7 +101,7 @@ function buildMonthCells(year, month) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 export default function CalendarView({
   assignments = [], selectedAssignment, onSelect,
-  customEvents = [], onAddCustomEvent, onDeleteCustomEvent,
+  customEvents = [], onAddCustomEvent, onDeleteCustomEvent, onMarkComplete,
 }) {
   const today    = new Date()
   const todayStr = toDateStr(today)
@@ -128,6 +128,23 @@ export default function CalendarView({
   const [mAllDay,  setMAllDay]  = useState(true)
   const [mDesc,   setMDesc]   = useState('')
   const inputRef = useRef(null)
+
+  // chip popup (assignment quick-action card)
+  const [chipPopup, setChipPopup] = useState(null) // { asgn, x, y }
+
+  function openChipPopup(asgn, rect) {
+    const popupW = 240, popupH = 150
+    if (window.innerWidth <= 768) {
+      // Center horizontally, position above bottom nav on mobile
+      setChipPopup({ asgn, x: (window.innerWidth - popupW) / 2, y: window.innerHeight - popupH - 76 })
+      return
+    }
+    let x = rect.right + 10
+    let y = rect.top
+    if (x + popupW > window.innerWidth - 12) x = rect.left - popupW - 10
+    if (y + popupH > window.innerHeight - 12) y = window.innerHeight - popupH - 12
+    setChipPopup({ asgn, x: Math.max(8, x), y: Math.max(8, y) })
+  }
 
   const year  = cursor.getFullYear()
   const month = cursor.getMonth()
@@ -241,14 +258,16 @@ export default function CalendarView({
               byDate={byDate} custByDate={custByDate}
               selectedAssignment={selectedAssignment}
               onSelect={onSelect} onAddClick={openModal}
-              onDeleteCustom={onDeleteCustomEvent} onDayClick={switchDay} />
+              onDeleteCustom={onDeleteCustomEvent} onDayClick={switchDay}
+              onChipClick={openChipPopup} />
           )}
           {viewMode === 'week' && (
             <WeekView weekDays={getWeekDays(cursor)} todayStr={todayStr} nowY={nowY}
               byDate={byDate} custByDate={custByDate}
               selectedAssignment={selectedAssignment}
               onSelect={onSelect} onAddClick={openModal}
-              onDeleteCustom={onDeleteCustomEvent} onDayClick={switchDay} />
+              onDeleteCustom={onDeleteCustomEvent} onDayClick={switchDay}
+              onMarkComplete={onMarkComplete} />
           )}
           {viewMode === 'day' && (
             <DayView date={dayDate} todayStr={todayStr} nowY={nowY}
@@ -257,10 +276,75 @@ export default function CalendarView({
               selectedAssignment={selectedAssignment}
               onSelect={onSelect}
               onAddClick={(startTime, endTime) => openModal(toDateStr(dayDate), startTime, endTime)}
-              onDeleteCustom={onDeleteCustomEvent} />
+              onDeleteCustom={onDeleteCustomEvent}
+              onMarkComplete={onMarkComplete} />
           )}
         </div>
       </div>
+
+      {/* ── Assignment chip popup ─────────────────────────────────────── */}
+      {chipPopup && createPortal(
+        <>
+          <div style={{ position:'fixed', inset:0, zIndex:998 }} onClick={() => setChipPopup(null)} />
+          <div className="animate-popIn" onClick={e => e.stopPropagation()} style={{
+            position:'fixed', top:chipPopup.y, left:chipPopup.x, width:228, zIndex:999,
+            backgroundColor:'var(--bg-surface)',
+            border:'1px solid var(--border)',
+            borderTop:`2px solid ${URGENCY_COLOR[chipPopup.asgn.urgency] ?? '#58A6FF'}`,
+            borderRadius:12, padding:'12px 14px',
+            boxShadow:'0 20px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
+            backdropFilter:'blur(24px)', WebkitBackdropFilter:'blur(24px)',
+            fontFamily:"'Inter',system-ui,sans-serif",
+          }}>
+            {/* header row */}
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+              <span style={{ fontSize:'0.6rem', fontWeight:700, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'0.07em', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {chipPopup.asgn.course}
+              </span>
+              <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <span style={{
+                  fontSize:'0.55rem', fontWeight:800, padding:'2px 6px', borderRadius:4,
+                  backgroundColor:(URGENCY_COLOR[chipPopup.asgn.urgency]??'#8B949E')+'22',
+                  color: URGENCY_COLOR[chipPopup.asgn.urgency]??'#8B949E',
+                  border:`1px solid ${(URGENCY_COLOR[chipPopup.asgn.urgency]??'#8B949E')}55`,
+                  letterSpacing:'0.06em',
+                }}>{chipPopup.asgn.urgency?.toUpperCase()??'—'}</span>
+                <button onClick={() => setChipPopup(null)} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.75rem', padding:'0 2px', lineHeight:1 }}>✕</button>
+              </div>
+            </div>
+            {/* title */}
+            <div style={{
+              fontSize:'0.9rem', fontWeight:700, lineHeight:1.3, marginBottom:6,
+              color: chipPopup.asgn.status==='completed' ? 'var(--text-muted)' : 'var(--text-primary)',
+              textDecoration: chipPopup.asgn.status==='completed' ? 'line-through' : 'none',
+            }}>{chipPopup.asgn.title}</div>
+            {/* meta */}
+            <div style={{ fontSize:'0.67rem', color:'var(--text-muted)', marginBottom:12, display:'flex', gap:8 }}>
+              {chipPopup.asgn.dueDate && <span>📅 {new Date(chipPopup.asgn.dueDate+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>}
+              {chipPopup.asgn.weight && <span>📊 {chipPopup.asgn.weight}%</span>}
+              {chipPopup.asgn.status==='completed' && <span style={{ color:'#3FB950' }}>✓ Done</span>}
+            </div>
+            {/* actions */}
+            <div style={{ display:'flex', gap:6 }}>
+              <button
+                onClick={() => { onMarkComplete?.(chipPopup.asgn.id); setChipPopup(null) }}
+                style={{
+                  flex:1, padding:'7px 8px', borderRadius:8, fontSize:'0.75rem', fontWeight:700,
+                  cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif", transition:'all .15s',
+                  border: chipPopup.asgn.status==='completed' ? '1px solid var(--border)' : '1px solid #2EA04388',
+                  backgroundColor: chipPopup.asgn.status==='completed' ? 'var(--bg-elevated)' : 'rgba(35,134,54,0.18)',
+                  color: chipPopup.asgn.status==='completed' ? 'var(--text-muted)' : '#3FB950',
+                }}
+              >{chipPopup.asgn.status==='completed' ? '↩ Undo' : '✓ Mark Done'}</button>
+              <button
+                onClick={() => { onSelect?.(chipPopup.asgn.id); setChipPopup(null) }}
+                style={{ padding:'7px 10px', borderRadius:8, border:'1px solid var(--border)', backgroundColor:'var(--bg-elevated)', color:'var(--text-muted)', fontSize:'0.72rem', fontWeight:600, cursor:'pointer', fontFamily:"'Inter',system-ui,sans-serif" }}
+              >View</button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
 
       {/* ── Add Event Modal ────────────────────────────────────────────── */}
       {modal && createPortal(
@@ -367,7 +451,7 @@ export default function CalendarView({
 }
 
 // ── Week View (time grid) ─────────────────────────────────────────────────────
-function WeekView({ weekDays, todayStr, nowY, byDate, custByDate, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick }) {
+function WeekView({ weekDays, todayStr, nowY, byDate, custByDate, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick, onMarkComplete }) {
   const scrollRef = useRef(null)
 
   // Scroll to 8 AM on mount
@@ -426,21 +510,28 @@ function WeekView({ weekDays, todayStr, nowY, byDate, custByDate, selectedAssign
               <div style={{ padding:'0 4px 6px', display:'flex', flexDirection:'column', gap:'2px', minHeight:'8px' }}>
                 {asgns.map(a => {
                   const c = URGENCY_COLOR[a.urgency] ?? '#8B949E'
+                  const isDone = a.status === 'completed'
                   return (
                     <div key={a.id}
                       onClick={() => onSelect(a.id)}
-                      title={`${a.course}: ${a.title} — Due by end of day`}
+                      title={`${a.course}: ${a.title}`}
                       style={{
-                        fontSize:'0.6rem', fontWeight:600, padding:'2px 5px', borderRadius:'3px',
-                        backgroundColor: a.status==='completed' ? 'var(--bg-elevated)' : c+'28',
-                        color: a.status==='completed' ? 'var(--text-muted)' : c,
-                        border:`1px solid ${c}44`,
-                        cursor:'pointer', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
-                        textDecoration: a.status==='completed' ? 'line-through' : 'none',
-                        opacity: a.status==='completed' ? 0.6 : 1,
+                        fontSize:'0.6rem', fontWeight:600, padding:'2px 4px 2px 6px', borderRadius:'4px',
+                        backgroundColor: isDone ? 'var(--bg-elevated)' : c+'22',
+                        color: isDone ? 'var(--text-muted)' : c,
+                        borderLeft:`2px solid ${isDone ? 'var(--border-strong)' : c}`,
+                        cursor:'pointer', overflow:'hidden', whiteSpace:'nowrap',
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        opacity: isDone ? 0.55 : 1,
+                        display:'flex', alignItems:'center', gap:3,
                       }}
                     >
-                      {a.title}
+                      <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>{isDone ? '✓ ' : ''}{a.title}</span>
+                      <button
+                        onClick={e => { e.stopPropagation(); onMarkComplete?.(a.id) }}
+                        title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                        style={{ flexShrink:0, background:'none', border:`1px solid ${isDone?'var(--border)':'#3FB95088'}`, borderRadius:3, color:isDone?'var(--text-muted)':'#3FB950', fontSize:'0.5rem', fontWeight:800, cursor:'pointer', padding:'1px 3px', lineHeight:1, fontFamily:'inherit' }}
+                      >{isDone ? '↩' : '✓'}</button>
                     </div>
                   )
                 })}
@@ -658,7 +749,7 @@ function WeekTimeCol({ date, dateStr, isToday, timedEvts, nowY, isLast, onAddCli
 }
 
 // ── Day View ──────────────────────────────────────────────────────────────────
-function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, onSelect, onAddClick, onDeleteCustom }) {
+function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onMarkComplete }) {
   const ds        = toDateStr(date)
   const isToday   = ds === todayStr
   const allDayEvts = customEvts.filter(e => !e.time)
@@ -744,14 +835,25 @@ function DayView({ date, todayStr, nowY, asgns, customEvts, selectedAssignment, 
             {asgns.map(a => {
               const c = URGENCY_COLOR[a.urgency] ?? '#8B949E'
               const isSel = a.id === selectedAssignment
+              const isDone = a.status === 'completed'
               return (
                 <div key={a.id} onClick={() => onSelect(a.id)} style={{
-                  fontSize:'0.72rem', fontWeight:600, padding:'4px 10px', borderRadius:'6px',
-                  backgroundColor: c+'22', color:c, border: isSel ? `1px solid ${c}` : `1px solid ${c}44`,
-                  cursor:'pointer', display:'flex', alignItems:'center', gap:'5px',
+                  fontSize:'0.72rem', fontWeight:600, padding:'5px 10px', borderRadius:'7px',
+                  backgroundColor: isDone ? 'var(--bg-elevated)' : c+'20',
+                  color: isDone ? 'var(--text-muted)' : c,
+                  border: isSel ? `1px solid ${c}` : `1px solid ${isDone ? 'transparent' : c+'44'}`,
+                  borderLeft:`3px solid ${isDone ? 'var(--border-strong)' : c}`,
+                  cursor:'pointer', display:'flex', alignItems:'center', gap:'8px',
+                  textDecoration: isDone ? 'line-through' : 'none',
+                  opacity: isDone ? 0.65 : 1,
+                  transition:'all .15s',
                 }}>
-                  <span>{a.course}: {a.title}</span>
-                  <span style={{ fontSize:'0.62rem', opacity:0.7 }}>· Due 11:59 PM</span>
+                  <span style={{ flex:1 }}>{isDone ? '✓ ' : ''}{a.course}: {a.title}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); onMarkComplete?.(a.id) }}
+                    title={isDone ? 'Mark incomplete' : 'Mark complete'}
+                    style={{ flexShrink:0, padding:'3px 8px', borderRadius:5, border:`1px solid ${isDone?'var(--border)':'#2EA04388'}`, backgroundColor:isDone?'var(--bg-elevated)':'rgba(35,134,54,0.15)', color:isDone?'var(--text-muted)':'#3FB950', fontSize:'0.65rem', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}
+                  >{isDone ? '↩ Undo' : '✓ Done'}</button>
                 </div>
               )
             })}
@@ -883,33 +985,33 @@ function addMinutes(timeStr, minutes) {
 }
 
 // ── Month View ────────────────────────────────────────────────────────────────
-function MonthView({ year, month, todayStr, byDate, custByDate, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick }) {
+function MonthView({ year, month, todayStr, byDate, custByDate, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick, onChipClick }) {
   const cells = buildMonthCells(year, month)
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:'4px' }}>
+    <div style={{ display:'flex', flexDirection:'column', gap:'3px' }}>
       <div style={s.legend}>
         {Object.entries(URGENCY_COLOR).map(([k,c]) => (
           <span key={k} style={s.legendItem}>
-            <span style={{ ...s.legendDot, backgroundColor:c, boxShadow:`0 0 4px ${c}` }} />
+            <span style={{ ...s.legendDot, backgroundColor:c, boxShadow:`0 0 5px ${c}88` }} />
             <span style={s.legendTxt}>{k.charAt(0).toUpperCase()+k.slice(1)}</span>
           </span>
         ))}
         <span style={s.legendItem}>
-          <span style={{ ...s.legendDot, backgroundColor:'#F8514966', border:'1px solid #F85149' }} />
+          <span style={{ ...s.legendDot, backgroundColor:'#F8514944', border:'1px solid #F85149' }} />
           <span style={s.legendTxt}>Overdue</span>
         </span>
         <span style={s.legendItem}>
-          <span style={{ ...s.legendDot, backgroundColor:'#58A6FF44', border:'1px dashed #58A6FF' }} />
+          <span style={{ ...s.legendDot, backgroundColor:'#58A6FF33', border:'1px dashed #58A6FF88' }} />
           <span style={s.legendTxt}>My Event</span>
         </span>
-        <span style={{ marginLeft:'auto', fontSize:'0.67rem', color:'var(--text-muted)' }}>
-          Click date to add · Click number to view day
+        <span style={{ marginLeft:'auto', fontSize:'0.65rem', color:'var(--text-muted)', opacity:0.7 }}>
+          Click assignment to manage · Click date to add event
         </span>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'3px' }}>
         {DAYS.map(d => <div key={d} style={s.dayLabel}>{d}</div>)}
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'4px' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:'3px' }}>
         {cells.map((cell,i) => (
           <MonthCell key={i} cell={cell}
             asgns={cell.dateStr ? (byDate[cell.dateStr]??[]) : []}
@@ -920,6 +1022,7 @@ function MonthView({ year, month, todayStr, byDate, custByDate, selectedAssignme
             onSelect={onSelect}
             onAddClick={() => cell.current && cell.dateStr && onAddClick(cell.dateStr)}
             onDeleteCustom={onDeleteCustom}
+            onChipClick={onChipClick}
             onDayClick={() => { if(cell.current&&cell.dateStr){const [y,m,d]=cell.dateStr.split('-'); onDayClick(new Date(+y,+m-1,+d))} }}
           />
         ))}
@@ -928,58 +1031,104 @@ function MonthView({ year, month, todayStr, byDate, custByDate, selectedAssignme
   )
 }
 
-function MonthCell({ cell, asgns, customEvts, isToday, isPast, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick }) {
-  const [hov, setHov] = useState(false)
+function MonthCell({ cell, asgns, customEvts, isToday, isPast, selectedAssignment, onSelect, onAddClick, onDeleteCustom, onDayClick, onChipClick }) {
+  const [hov, setHov]     = useState(false)
   const [hovCE, setHovCE] = useState(null)
+  const [hovChip, setHovChip] = useState(null)
   const hasOverdue = isPast && asgns.some(a => a.status !== 'completed')
-  const hasContent = asgns.length > 0 || customEvts.length > 0
+  const totalItems = asgns.length + customEvts.length
 
   return (
-    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+    <div onMouseEnter={() => setHov(true)} onMouseLeave={() => { setHov(false); setHovChip(null) }}
       onClick={() => cell.current && onAddClick()}
       style={{
-        ...s.cell, opacity: cell.current?1:0.25, position:'relative', cursor: cell.current?'pointer':'default',
-        backgroundColor: isToday ? 'color-mix(in srgb, #58A6FF 15%, var(--bg-surface))' : hasOverdue ? 'var(--wrong-bg)' : hov&&cell.current ? 'var(--bg-hover)' : 'var(--bg-surface)',
-        border: isToday ? '1px solid #58A6FF' : hasOverdue ? '1px solid #F8514944' : hov&&cell.current ? '1px solid var(--border-strong)' : '1px solid var(--bg-elevated)',
-        boxShadow: isToday ? '0 0 0 2px #58A6FF33' : 'none',
+        ...s.cell, opacity: cell.current ? 1 : 0.22, position:'relative', cursor: cell.current ? 'pointer' : 'default',
+        backgroundColor: isToday
+          ? 'color-mix(in srgb, #58A6FF 12%, var(--bg-surface))'
+          : hasOverdue ? 'rgba(248,81,73,0.08)' : hov && cell.current ? 'var(--bg-hover)' : 'var(--bg-surface)',
+        border: isToday
+          ? '1.5px solid #58A6FF88'
+          : hasOverdue ? '1px solid rgba(248,81,73,0.3)' : hov && cell.current ? '1px solid var(--border-strong)' : '1px solid var(--bg-elevated)',
+        boxShadow: isToday ? '0 0 0 1px #58A6FF22 inset' : 'none',
         transition:'background-color .15s, border-color .15s',
       }}
     >
-      <span onClick={e=>{e.stopPropagation();onDayClick()}} style={{
-        ...s.dayNum, cursor:cell.current?'pointer':'default',
-        color: isToday?'#58A6FF':hasOverdue?'#F85149':cell.current?'var(--text-primary)':'var(--border-strong)',
-        fontWeight: isToday||hasOverdue?700:400,
-      }}>
-        {cell.day}
-        {hasOverdue && <span style={s.warnDot} title="Overdue">●</span>}
-      </span>
-      {hov && cell.current && !hasContent && <div style={s.addHint}>+</div>}
+      {/* Day number */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+        <span onClick={e=>{e.stopPropagation(); onDayClick()}} style={{
+          ...s.dayNum, cursor: cell.current ? 'pointer' : 'default',
+          color: isToday ? '#58A6FF' : hasOverdue ? '#F85149' : cell.current ? 'var(--text-primary)' : 'var(--border-strong)',
+          fontWeight: isToday ? 800 : hasOverdue ? 700 : 400,
+        }}>
+          {isToday
+            ? <span style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', backgroundColor:'#58A6FF', color:'#fff', fontSize:'0.7rem', fontWeight:800 }}>{cell.day}</span>
+            : cell.day
+          }
+          {hasOverdue && !isToday && <span style={{ ...s.warnDot, marginLeft:2 }} title="Overdue">●</span>}
+        </span>
+        {hov && cell.current && (
+          <span onClick={e=>{e.stopPropagation(); onAddClick()}}
+            style={{ fontSize:'0.75rem', color:'var(--text-muted)', opacity:0.6, lineHeight:1, fontWeight:300, paddingRight:2, cursor:'pointer' }}
+            title="Add event">+</span>
+        )}
+      </div>
+
+      {/* Assignment chips */}
       <div style={s.chips}>
         {asgns.slice(0,2).map(a => {
-          const c = URGENCY_COLOR[a.urgency]??'#8B949E'; const isSel = a.id===selectedAssignment
+          const c = URGENCY_COLOR[a.urgency] ?? '#8B949E'
+          const isDone = a.status === 'completed'
+          const isSel  = a.id === selectedAssignment
+          const isHov  = hovChip === a.id
           return (
-            <div key={a.id} title={`${a.title} — Due by end of day`}
-              onClick={e=>{e.stopPropagation();onSelect(a.id)}}
-              style={{ ...s.chip, backgroundColor:a.status==='completed'?'var(--bg-elevated)':c+'22', color:a.status==='completed'?'var(--text-muted)':c, border:isSel?`1px solid ${c}`:`1px solid ${c}44`, textDecoration:a.status==='completed'?'line-through':'none', opacity:a.status==='completed'?0.5:1 }}>
-              {a.title.length>13?a.title.slice(0,12)+'…':a.title}
+            <div key={a.id}
+              title={`${a.course}: ${a.title} — click for actions`}
+              onMouseEnter={e => { e.stopPropagation(); setHovChip(a.id) }}
+              onMouseLeave={() => setHovChip(null)}
+              onClick={e => { e.stopPropagation(); onChipClick?.(a, e.currentTarget.getBoundingClientRect()) }}
+              style={{
+                ...s.chip,
+                display:'flex', alignItems:'center', gap:3,
+                backgroundColor: isDone ? 'var(--bg-elevated)' : isHov ? c+'30' : c+'18',
+                color: isDone ? 'var(--text-muted)' : c,
+                borderLeft:`2px solid ${isDone ? 'var(--border-strong)' : c}`,
+                border: isSel ? `1px solid ${c}` : `1px solid ${isDone ? 'transparent' : c+'33'}`,
+                borderLeftWidth:'2px',
+                textDecoration: isDone ? 'line-through' : 'none',
+                opacity: isDone ? 0.55 : 1,
+                transform: isHov ? 'translateX(1px)' : 'none',
+                transition:'background-color .12s, transform .1s, opacity .12s',
+                cursor:'pointer',
+              }}
+            >
+              {isDone && <span style={{ fontSize:'0.55rem', flexShrink:0 }}>✓</span>}
+              <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {a.title.length > 14 ? a.title.slice(0,13)+'…' : a.title}
+              </span>
+              {isHov && !isDone && (
+                <span style={{ fontSize:'0.5rem', flexShrink:0, opacity:0.7 }}>›</span>
+              )}
             </div>
           )
         })}
-        {customEvts.slice(0,2).map(ev => (
+        {/* Custom event chips */}
+        {customEvts.slice(0, Math.max(0, 3 - asgns.slice(0,2).length)).map(ev => (
           <div key={ev.id}
-            title={ev.time?`${ev.title} at ${formatTime(ev.time)}`:ev.title}
+            title={ev.time ? `${ev.title} at ${formatTime(ev.time)}` : ev.title}
             onMouseEnter={e=>{e.stopPropagation();setHovCE(ev.id)}}
             onMouseLeave={()=>setHovCE(null)}
             onClick={e=>e.stopPropagation()}
-            style={{ ...s.chip, ...s.customChip, backgroundColor:ev.color+'20', color:ev.color, border:`1px dashed ${ev.color}88`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:'2px' }}
+            style={{ ...s.chip, ...s.customChip, backgroundColor:ev.color+'18', color:ev.color, borderLeft:`2px solid ${ev.color}88`, border:`1px solid ${ev.color}22`, display:'flex', alignItems:'center', justifyContent:'space-between', gap:2 }}
           >
-            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {ev.time?`${formatTime(ev.time)} `:''}✦ {ev.title.length>9?ev.title.slice(0,8)+'…':ev.title}
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>
+              {ev.time ? `${formatTime(ev.time)} ` : ''}✦ {ev.title.length>10?ev.title.slice(0,9)+'…':ev.title}
             </span>
             {hovCE===ev.id && <span onClick={e=>{e.stopPropagation();onDeleteCustom?.(ev.id)}} style={s.deleteX} title="Remove">×</span>}
           </div>
         ))}
-        {(asgns.length+customEvts.length)>4 && <span style={s.more}>+{asgns.length+customEvts.length-4} more</span>}
+        {totalItems > 3 && (
+          <span style={s.more}>+{totalItems - 3} more</span>
+        )}
       </div>
     </div>
   )
@@ -1011,7 +1160,9 @@ function NavBtn({ children, onClick }) {
 const CSS = `
   @keyframes calSlideLeft  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
   @keyframes calSlideRight { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
-  @keyframes popIn { from{opacity:0;transform:scale(0.92) translateY(14px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  @keyframes popIn { from{opacity:0;transform:scale(0.88) translateY(8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  @keyframes chipPop { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+  .chip-popup-enter { animation: chipPop .18s cubic-bezier(.16,1,.3,1) both; }
   .animate-popIn { animation: popIn .26s cubic-bezier(.16,1,.3,1) both; }
   .cal-save-btn:hover:not(:disabled) { background-color:#2EA043 !important; box-shadow:0 4px 18px rgba(46,160,67,0.35) !important; transform:translateY(-1px); }
   .cal-save-btn:active:not(:disabled) { transform:translateY(0); }
@@ -1058,15 +1209,15 @@ const s = {
     fontSize:'0.65rem', fontWeight:700, color:'var(--text-muted)',
     textTransform:'uppercase', letterSpacing:'0.06em', textAlign:'center', padding:'4px 0',
   },
-  cell: { borderRadius:'8px', padding:'6px 6px 8px', minHeight:'80px' },
-  dayNum: { fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'3px', marginBottom:'5px' },
+  cell: { borderRadius:'10px', padding:'7px 6px 8px', minHeight:'88px' },
+  dayNum: { fontSize:'0.75rem', display:'flex', alignItems:'center', gap:'3px' },
   warnDot: { fontSize:'0.4rem', color:'#F85149', lineHeight:1 },
-  addHint: { position:'absolute', bottom:'6px', right:'7px', fontSize:'0.9rem', color:'var(--text-muted)', opacity:0.5, lineHeight:1, pointerEvents:'none' },
-  chips: { display:'flex', flexDirection:'column', gap:'3px' },
-  chip: { fontSize:'0.6rem', fontWeight:500, padding:'2px 5px', borderRadius:'4px', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
-  customChip: { borderRadius:'4px', fontStyle:'italic', cursor:'default' },
+  addHint: { position:'absolute', bottom:'6px', right:'7px', fontSize:'0.9rem', color:'var(--text-muted)', opacity:0.4, lineHeight:1, pointerEvents:'none' },
+  chips: { display:'flex', flexDirection:'column', gap:'3px', marginTop:'2px' },
+  chip: { fontSize:'0.62rem', fontWeight:600, padding:'3px 5px 3px 4px', borderRadius:'5px', cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' },
+  customChip: { borderRadius:'5px', fontStyle:'italic', cursor:'default' },
   deleteX: { fontStyle:'normal', fontSize:'0.75rem', fontWeight:700, lineHeight:1, cursor:'pointer', flexShrink:0, opacity:0.8 },
-  more: { fontSize:'0.58rem', color:'var(--text-muted)', paddingLeft:'3px' },
+  more: { fontSize:'0.58rem', color:'var(--text-muted)', paddingLeft:'4px', fontWeight:500 },
 
   // modal
   backdrop: { position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.6)', backdropFilter:'blur(5px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:700, padding:'24px' },
