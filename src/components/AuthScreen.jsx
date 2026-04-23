@@ -437,7 +437,7 @@ export default function AuthScreen({ googleEnabled, onAuth, onSkip, theme = 'dar
             ))}
 
             {/* Sign-in card */}
-            <div style={{
+            <div className="auth-signin-card" style={{
               ...s.card,
               opacity:    stage >= 3 ? 1 : 0,
               transform:  stage >= 3 ? 'translateY(0) scale(1)' : 'translateY(28px) scale(0.97)',

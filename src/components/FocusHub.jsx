@@ -63,7 +63,9 @@ function PomodoroTimer() {
   const pct        = secsLeft / totalSecs
   const ringOffset = RING_C * (1 - pct)
   const { label, color } = POMO_META[mode]
-  const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0')
+  const showHours = secsLeft >= 3600
+  const hh = String(Math.floor(secsLeft / 3600)).padStart(2, '0')
+  const mm = String(Math.floor((secsLeft % 3600) / 60)).padStart(2, '0')
   const ss = String(secsLeft % 60).padStart(2, '0')
 
   return (
@@ -107,8 +109,8 @@ function PomodoroTimer() {
             />
           </svg>
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
-              {mm}:{ss}
+            <span style={{ fontSize: showHours ? '1.45rem' : '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+              {showHours ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`}
             </span>
             <span style={{ fontSize: '0.6rem', color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '4px' }}>
               {label}
@@ -141,30 +143,46 @@ function PomodoroTimer() {
       {showSet && (
         <div style={{ marginTop: '14px', padding: '12px', backgroundColor: 'var(--bg-elevated)', borderRadius: '10px', border: '1px solid var(--border)' }} className="animate-slideDown">
           <p style={{ margin: '0 0 10px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Duration (minutes)
+            Duration
           </p>
-          {Object.entries(POMO_META).map(([k, m]) => (
-            <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>{m.label}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button onClick={() => setCustMin(p => ({ ...p, [k]: Math.max(1, (p[k] || POMO_DEFAULTS[k]) - 1) }))} style={s.stepBtn}>−</button>
-                <input
-                  type="number" min={1} max={240}
-                  value={customMins[k] || POMO_DEFAULTS[k]}
-                  onChange={e => {
-                    const v = parseInt(e.target.value)
-                    if (!isNaN(v)) setCustMin(p => ({ ...p, [k]: Math.min(240, Math.max(1, v)) }))
-                  }}
-                  style={{
-                    width: '48px', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem',
-                    color: m.color, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)',
-                    borderRadius: '6px', padding: '3px 4px', fontFamily: 'inherit', outline: 'none',
-                  }}
-                />
-                <button onClick={() => setCustMin(p => ({ ...p, [k]: Math.min(240, (p[k] || POMO_DEFAULTS[k]) + 1) }))} style={s.stepBtn}>+</button>
+          {Object.entries(POMO_META).map(([k, m]) => {
+            const totalM = customMins[k] || POMO_DEFAULTS[k]
+            const hrs  = Math.floor(totalM / 60)
+            const mins = totalM % 60
+            function setHM(h, mn) {
+              const total = Math.max(1, Math.min(600, h * 60 + mn))
+              setCustMin(p => ({ ...p, [k]: total }))
+            }
+            return (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', minWidth: '80px' }}>{m.label}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {/* Hours */}
+                  <button onClick={() => setHM(hrs, mins - 1)} style={s.stepBtn}>−</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <input
+                      type="number" min={0} max={9}
+                      value={hrs}
+                      onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setHM(Math.min(9, Math.max(0, v)), mins) }}
+                      style={{ width: '36px', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem', color: m.color, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '6px', padding: '3px 2px', fontFamily: 'inherit', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: '1px' }}>h</span>
+                  </div>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem', alignSelf: 'flex-start', marginTop: '4px' }}>:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <input
+                      type="number" min={0} max={59}
+                      value={mins}
+                      onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setHM(hrs, Math.min(59, Math.max(0, v))) }}
+                      style={{ width: '36px', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem', color: m.color, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)', borderRadius: '6px', padding: '3px 2px', fontFamily: 'inherit', outline: 'none' }}
+                    />
+                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: '1px' }}>m</span>
+                  </div>
+                  <button onClick={() => setHM(hrs, mins + 1)} style={s.stepBtn}>+</button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <button onClick={() => setSess(0)} style={{ width: '100%', marginTop: '6px', padding: '6px', borderRadius: '6px', border: '1px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
             Reset Session Count
           </button>
