@@ -132,6 +132,7 @@ export default function App({ googleEnabled = true }) {
   const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters' | 'vitals'
   const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
   const [isDemoData, setIsDemoData] = useState(true)
+  const [mobileDashPanel, setMobileDashPanel] = useState('list')
 
   // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
   useEffect(() => {
@@ -438,13 +439,13 @@ export default function App({ googleEnabled = true }) {
       <div style={{ ...styles.orb3, backgroundColor: theme === 'light' ? '#e9d5ff33' : '#2D1B6922' }} aria-hidden />
 
       {/* ── Top nav bar ──────────────────────────────────────────────── */}
-      <div style={styles.topBar} className="glass-panel">
+      <div style={styles.topBar} className="glass-panel scc-topbar">
         <div style={styles.brand}>
           <span style={styles.brandDot} className="brand-dot-pulse" />
           <span style={styles.brandText}>Study Command Center</span>
         </div>
 
-        <div style={styles.tabs}>
+        <div style={styles.tabs} className="scc-tabs">
           {[
             { id: 'dashboard', label: '⊞ Dashboard' },
             { id: 'calendar',  label: '📅 Calendar'  },
@@ -501,12 +502,12 @@ export default function App({ googleEnabled = true }) {
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? '☀' : '☾'}
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, marginLeft: '5px' }}>
+            <span className="scc-theme-text" style={{ fontSize: '0.72rem', fontWeight: 600, marginLeft: '5px' }}>
               {theme === 'dark' ? 'Light' : 'Dark'}
             </span>
           </button>
-          <button style={styles.uploadBtn} onClick={() => setShowUpload(true)}>
-            + Upload
+          <button style={styles.uploadBtn} className="scc-upload-btn" onClick={() => setShowUpload(true)}>
+            <span className="scc-upload-icon">+</span><span className="scc-upload-text"> Upload</span>
           </button>
           {googleProfile && (
             <div ref={profileRef} style={{ position: 'relative' }}>
@@ -569,15 +570,15 @@ export default function App({ googleEnabled = true }) {
 
       {/* ── Views ────────────────────────────────────────────────────── */}
       {view === 'dashboard' ? (
-        <div key="dashboard" style={styles.layout}>
-          <div style={{ ...styles.panel, '--pd': '0ms' }} className="panel-from-left">
+        <div key="dashboard" style={styles.layout} className="scc-dashboard-layout" data-panel={mobileDashPanel}>
+          <div style={{ ...styles.panel, '--pd': '0ms' }} className="panel-from-left dash-list">
             <Browser
               assignments={visibleAssignments}
               selectedAssignment={selectedAssignment}
-              onSelect={setSelectedAssignment}
+              onSelect={(id) => { setSelectedAssignment(id); setMobileDashPanel('detail') }}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '60ms' }} className="panel-from-center">
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '60ms' }} className="panel-from-center dash-detail">
             <DetailView
               selectedAssignment={selectedAssignmentObj}
               onNotesGenerated={handleNotesGenerated}
@@ -586,7 +587,7 @@ export default function App({ googleEnabled = true }) {
               studyMode={studyMode}
             />
           </div>
-          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right">
+          <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right dash-control">
             <Controller
               assignments={assignments}
               filteredAssignments={visibleAssignments}
@@ -613,7 +614,7 @@ export default function App({ googleEnabled = true }) {
               onDeleteCustomEvent={handleDeleteCustomEvent}
             />
           </div>
-          <div style={styles.calSide}>
+          <div style={styles.calSide} className="scc-cal-side">
             <UpNextPanel assignments={visibleAssignments} />
             <DetailView
               selectedAssignment={selectedAssignmentObj}
@@ -670,6 +671,26 @@ export default function App({ googleEnabled = true }) {
             }}
           />
         </div>
+      )}
+
+      {/* ── Mobile dashboard panel switcher ─────────────────────── */}
+      {view === 'dashboard' && (
+        <nav className="mobile-dash-switcher" aria-label="Dashboard panels">
+          {[
+            { id: 'list',    icon: '📋', label: 'List' },
+            { id: 'detail',  icon: '📄', label: 'Detail' },
+            { id: 'control', icon: '⚙',  label: 'Filter' },
+          ].map(({ id, icon, label }) => (
+            <button
+              key={id}
+              className={'mobile-dash-tab' + (mobileDashPanel === id ? ' active' : '')}
+              onClick={() => setMobileDashPanel(id)}
+            >
+              <span style={{ fontSize: '1.15rem', display: 'block', lineHeight: 1 }}>{icon}</span>
+              <span style={{ fontSize: '0.62rem', fontWeight: 600, letterSpacing: '0.03em', marginTop: '3px', display: 'block' }}>{label}</span>
+            </button>
+          ))}
+        </nav>
       )}
 
       {/* ── Upload modal overlay ─────────────────────────────────── */}
