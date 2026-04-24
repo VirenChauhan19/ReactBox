@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
+import { LayoutDashboard, CalendarDays, BookOpen, HeartPulse, Crosshair } from 'lucide-react'
 
 // Only rendered inside GoogleOAuthProvider — safely exposes the login fn via ref
 function GoogleFitBridge({ loginRef, onSuccess }) {
@@ -441,9 +442,10 @@ export default function App({ googleEnabled = true }) {
 
       {/* ── Star field + orbs — fixed behind everything ───────────── */}
       <ParticleCanvas style={{ position: 'fixed', zIndex: 0 }} theme={theme} />
-      <div style={{ ...styles.orb1, backgroundColor: theme === 'light' ? '#bfdbfe55' : '#1D3A6A44' }} aria-hidden />
-      <div style={{ ...styles.orb2, backgroundColor: theme === 'light' ? '#bbf7d044' : '#0F2D2033' }} aria-hidden />
-      <div style={{ ...styles.orb3, backgroundColor: theme === 'light' ? '#e9d5ff33' : '#2D1B6922' }} aria-hidden />
+      <div style={{ ...styles.orb1, backgroundColor: theme === 'light' ? '#93c5fd55' : '#1E4A8866' }} aria-hidden />
+      <div style={{ ...styles.orb2, backgroundColor: theme === 'light' ? '#86efac44' : '#0D3A2244' }} aria-hidden />
+      <div style={{ ...styles.orb3, backgroundColor: theme === 'light' ? '#d8b4fe44' : '#3D1E7744' }} aria-hidden />
+      <div style={{ ...styles.orb4, backgroundColor: theme === 'light' ? '#fde68a33' : '#4A1B3833' }} aria-hidden />
 
       {/* ── Top nav bar ──────────────────────────────────────────────── */}
       <div style={styles.topBar} className="glass-panel scc-topbar">
@@ -454,44 +456,57 @@ export default function App({ googleEnabled = true }) {
 
         <div style={styles.tabs} className="scc-tabs">
           {[
-            { id: 'dashboard', label: '⊞ Dashboard' },
-            { id: 'calendar',  label: '📅 Calendar'  },
-            { id: 'chapters',  label: '📚 Chapters'  },
-            { id: 'vitals',    label: '💓 Vitals',    dotColor: studyMeta?.color },
-            { id: 'focus',     label: '🎯 Focus Hub'  },
-          ].map(({ id, label, dotColor }) => (
-            <button
-              key={id}
-              className="nav-tab"
-              data-active={view === id ? 'true' : 'false'}
-              onClick={() => setView(id)}
-              style={{
-                ...styles.tab,
-                color:           view === id ? 'var(--text-primary)' : 'var(--text-muted)',
-                borderBottom:    view === id
-                  ? `2px solid ${id === 'chapters' ? '#BC8CFF' : id === 'focus' ? '#E3B341' : id === 'vitals' ? (studyMeta?.color ?? '#F85149') : '#58A6FF'}`
-                  : '2px solid transparent',
-                backgroundColor: view === id ? 'var(--bg-elevated)' : 'transparent',
-                position:        'relative',
-              }}
-            >
-              {label}
-              {id === 'vitals' && biometricData && studyMeta && (
-                <span style={{
-                  display:         'inline-block',
-                  width:           '7px',
-                  height:          '7px',
-                  borderRadius:    '50%',
-                  backgroundColor: studyMeta.color,
-                  marginLeft:      '5px',
-                  boxShadow:       `0 0 6px ${studyMeta.color}`,
-                  animation:       'brand-dot-pulse 2s ease-in-out infinite',
-                  verticalAlign:   'middle',
-                  marginBottom:    '1px',
-                }} />
-              )}
-            </button>
-          ))}
+            { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, accentColor: '#58A6FF' },
+            { id: 'calendar',  label: 'Calendar',  Icon: CalendarDays,     accentColor: '#58A6FF' },
+            { id: 'chapters',  label: 'Chapters',  Icon: BookOpen,         accentColor: '#BC8CFF' },
+            { id: 'vitals',    label: 'Vitals',    Icon: HeartPulse,       accentColor: studyMeta?.color ?? '#F85149', dotColor: studyMeta?.color },
+            { id: 'focus',     label: 'Focus Hub', Icon: Crosshair,        accentColor: '#E3B341' },
+          ].map(({ id, label, Icon, accentColor, dotColor }) => {
+            const isActive = view === id
+            return (
+              <button
+                key={id}
+                className="nav-tab"
+                data-active={isActive ? 'true' : 'false'}
+                onClick={() => setView(id)}
+                style={{
+                  ...styles.tab,
+                  color:           isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                  borderBottom:    isActive ? `2px solid ${accentColor}` : '2px solid transparent',
+                  backgroundColor: isActive ? 'var(--bg-elevated)' : 'transparent',
+                  position:        'relative',
+                  display:         'flex',
+                  alignItems:      'center',
+                  gap:             '6px',
+                }}
+              >
+                <Icon
+                  size={15}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  style={{
+                    color:      isActive ? accentColor : 'inherit',
+                    flexShrink: 0,
+                    transition: 'color 0.15s',
+                  }}
+                />
+                {label}
+                {id === 'vitals' && biometricData && studyMeta && (
+                  <span style={{
+                    display:         'inline-block',
+                    width:           '7px',
+                    height:          '7px',
+                    borderRadius:    '50%',
+                    backgroundColor: studyMeta.color,
+                    marginLeft:      '2px',
+                    boxShadow:       `0 0 6px ${studyMeta.color}`,
+                    animation:       'brand-dot-pulse 2s ease-in-out infinite',
+                    verticalAlign:   'middle',
+                    marginBottom:    '1px',
+                  }} />
+                )}
+              </button>
+            )
+          })}
         </div>
 
         <div style={styles.rightGroup}>
@@ -883,42 +898,55 @@ const styles = {
   },
   orb1: {
     position:        'fixed',
-    width:           '600px',
-    height:          '600px',
+    width:           '750px',
+    height:          '750px',
     borderRadius:    '50%',
-    backgroundColor: '#1D3A6A44',
-    filter:          'blur(90px)',
-    top:             '-160px',
-    left:            '-180px',
+    backgroundColor: '#1E4A8866',
+    filter:          'blur(100px)',
+    top:             '-200px',
+    left:            '-220px',
     pointerEvents:   'none',
     zIndex:          0,
-    animation:       'orb1 12s ease-in-out infinite',
+    animation:       'orb1 14s ease-in-out infinite',
   },
   orb2: {
     position:        'fixed',
-    width:           '500px',
-    height:          '500px',
+    width:           '650px',
+    height:          '650px',
     borderRadius:    '50%',
-    backgroundColor: '#0F2D2033',
-    filter:          'blur(90px)',
-    bottom:          '-100px',
-    right:           '-120px',
+    backgroundColor: '#0D3A2244',
+    filter:          'blur(100px)',
+    bottom:          '-160px',
+    right:           '-160px',
     pointerEvents:   'none',
     zIndex:          0,
-    animation:       'orb2 14s ease-in-out infinite',
+    animation:       'orb2 16s ease-in-out infinite',
   },
   orb3: {
     position:        'fixed',
-    width:           '350px',
-    height:          '350px',
+    width:           '480px',
+    height:          '480px',
     borderRadius:    '50%',
-    backgroundColor: '#2D1B6922',
-    filter:          'blur(80px)',
-    top:             '45%',
-    right:           '12%',
+    backgroundColor: '#3D1E7744',
+    filter:          'blur(90px)',
+    top:             '38%',
+    right:           '10%',
     pointerEvents:   'none',
     zIndex:          0,
-    animation:       'orb3 16s ease-in-out infinite',
+    animation:       'orb3 18s ease-in-out infinite',
+  },
+  orb4: {
+    position:        'fixed',
+    width:           '400px',
+    height:          '400px',
+    borderRadius:    '50%',
+    backgroundColor: '#4A1B3833',
+    filter:          'blur(90px)',
+    bottom:          '10%',
+    left:            '18%',
+    pointerEvents:   'none',
+    zIndex:          0,
+    animation:       'orb4 20s ease-in-out infinite',
   },
   topBar: {
     position:        'relative',
@@ -927,10 +955,11 @@ const styles = {
     alignItems:      'center',
     justifyContent:  'space-between',
     padding:         '0 20px',
-    height:          '52px',
-    backgroundColor: 'var(--bg-surface)',
+    height:          '54px',
+    background:      'linear-gradient(to bottom, var(--bg-elevated), var(--bg-surface))',
     borderBottom:    '1px solid var(--border)',
     flexShrink:      0,
+    boxShadow:       '0 4px 32px rgba(0,0,0,0.35), 0 1px 0 rgba(255,255,255,0.04)',
   },
   brand: {
     display: 'flex',
@@ -938,18 +967,19 @@ const styles = {
     gap: '8px',
   },
   brandDot: {
-    display: 'inline-block',
-    width: '9px',
-    height: '9px',
-    borderRadius: '50%',
+    display:         'inline-block',
+    width:           '9px',
+    height:          '9px',
+    borderRadius:    '50%',
     backgroundColor: '#58A6FF',
+    boxShadow:       '0 0 10px rgba(88,166,255,0.7), 0 0 22px rgba(88,166,255,0.3)',
   },
   brandText: {
-    fontSize: '0.78rem',
-    fontWeight: 700,
-    color: 'var(--text-muted)',
+    fontSize:      '0.78rem',
+    fontWeight:    700,
+    color:         'var(--text-body)',
     textTransform: 'uppercase',
-    letterSpacing: '0.08em',
+    letterSpacing: '0.1em',
   },
   tabs: {
     display: 'flex',
@@ -1111,15 +1141,15 @@ const styles = {
   },
   dropdown: {
     position:              'absolute',
-    top:                   'calc(100% + 8px)',
+    top:                   'calc(100% + 10px)',
     right:                 0,
-    width:                 '240px',
-    backgroundColor:       'var(--bg-surface)',
-    backdropFilter:        'blur(28px) saturate(180%)',
-    WebkitBackdropFilter:  'blur(28px) saturate(180%)',
-    border:                '1px solid rgba(255,255,255,0.08)',
-    borderRadius:          '12px',
-    boxShadow:             '0 16px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+    width:                 '248px',
+    backgroundColor:       'var(--bg-elevated)',
+    backdropFilter:        'blur(32px) saturate(200%)',
+    WebkitBackdropFilter:  'blur(32px) saturate(200%)',
+    border:                '1px solid rgba(255,255,255,0.10)',
+    borderRadius:          '14px',
+    boxShadow:             '0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(88,166,255,0.05), inset 0 1px 0 rgba(255,255,255,0.08)',
     padding:               '8px',
     zIndex:                500,
   },
@@ -1164,27 +1194,28 @@ const styles = {
 
   // ── Settings modal ─────────────────────────────────────────────────────────
   modalBackdrop: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 600,
-    padding: '24px',
+    position:        'fixed',
+    inset:           0,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    backdropFilter:  'blur(8px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(8px) saturate(160%)',
+    display:         'flex',
+    alignItems:      'center',
+    justifyContent:  'center',
+    zIndex:          600,
+    padding:         '24px',
   },
   modalCard: {
-    backgroundColor:      'var(--bg-surface)',
-    backdropFilter:       'blur(32px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(32px) saturate(180%)',
-    border:               '1px solid rgba(255,255,255,0.09)',
-    borderRadius:         '16px',
+    backgroundColor:      'var(--bg-elevated)',
+    backdropFilter:       'blur(36px) saturate(200%)',
+    WebkitBackdropFilter: 'blur(36px) saturate(200%)',
+    border:               '1px solid rgba(255,255,255,0.11)',
+    borderRadius:         '18px',
     padding:              '28px',
     width:                '100%',
     maxWidth:             '460px',
-    boxShadow:            '0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07)',
-    fontFamily: "'Inter', system-ui, sans-serif",
+    boxShadow:            '0 32px 80px rgba(0,0,0,0.70), 0 0 0 1px rgba(88,166,255,0.06), inset 0 1px 0 rgba(255,255,255,0.09)',
+    fontFamily:           "'Inter', system-ui, sans-serif",
   },
   modalHeader: {
     display: 'flex',
