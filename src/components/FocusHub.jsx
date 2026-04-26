@@ -329,11 +329,11 @@ function TodoRow({ todo, i, onToggle, onPriority, onDelete }) {
 
 // ─── Bookmarks ────────────────────────────────────────────────────────────────
 const DEFAULT_LINKS = [
-  { id: 'bm-1', emoji: '🎓', label: 'Canvas',       url: 'https://canvas.instructure.com' },
+  { id: 'bm-1', emoji: '🎓', label: 'Blackboard',   url: 'https://scad.blackboard.com'    },
   { id: 'bm-2', emoji: '📁', label: 'Google Drive', url: 'https://drive.google.com'       },
-  { id: 'bm-3', emoji: '📒', label: 'Notion',       url: 'https://notion.so'              },
+  { id: 'bm-3', emoji: '📦', label: 'Dropbox',      url: 'https://dropbox.com'            },
   { id: 'bm-4', emoji: '▶',  label: 'YouTube',      url: 'https://youtube.com'            },
-  { id: 'bm-5', emoji: '🔬', label: 'Scholar',      url: 'https://scholar.google.com'     },
+  { id: 'bm-5', emoji: '🏫', label: 'MySCAD',       url: 'https://my.scad.edu'            },
   { id: 'bm-6', emoji: '💻', label: 'GitHub',       url: 'https://github.com'             },
 ]
 

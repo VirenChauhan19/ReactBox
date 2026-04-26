@@ -194,10 +194,9 @@ export default function Controller({
       </FilterGroup>
 
       <FilterGroup id="fs" label="Status" value={filterStatus} onChange={onFilterStatus}>
-        <option value="all">All Statuses</option>
+        <option value="all">All Active</option>
         <option value="not-started">Not Started</option>
         <option value="in-progress">In Progress</option>
-        <option value="completed">Completed</option>
       </FilterGroup>
 
       <FilterGroup id="sb" label="Sort By" value={sortBy} onChange={onSortBy}>

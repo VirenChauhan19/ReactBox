@@ -33,6 +33,14 @@ import {
   computeReadiness, getStudyMode, STUDY_MODE_META,
 } from './utils/wearableApi.js'
 
+// Re-index IDs so duplicate IDs from multi-PDF merges never cause multi-selection
+function sanitizeAssignments(list) {
+  const ids = list.map(a => a.id)
+  const hasDupes = ids.length !== new Set(ids).size
+  if (!hasDupes) return list
+  return list.map((a, i) => ({ ...a, id: `asgn-${String(i + 1).padStart(2, '0')}` }))
+}
+
 const INITIAL_STATE = {
   selectedAssignment: 'asgn-01',
   assignments: [
@@ -77,6 +85,47 @@ const INITIAL_STATE = {
   filterStatus: 'all',
   sortBy: 'dueDate',
 }
+
+// ── Session restore — runs once synchronously at module load, no flash ────────
+const _bootSession = (() => {
+  try {
+    const raw = localStorage.getItem('scc_session')
+    if (!raw) return null
+    const session = JSON.parse(raw)
+    if (!session?.profile) return null
+
+    const { profile, view } = session
+    const key     = profile.sub === 'guest' ? 'scc_data_guest' : `scc_data_${profile.sub}`
+    const dataRaw = localStorage.getItem(key)
+
+    if (dataRaw) {
+      const parsed = JSON.parse(dataRaw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const assignments = sanitizeAssignments(parsed)
+        return {
+          profile, view: view ?? 'dashboard',
+          assignments, isDemoData: false,
+          screen: 'dashboard', selectedId: assignments[0].id,
+        }
+      }
+    }
+
+    // Guest with no uploaded data — restore to demo dashboard
+    if (profile.sub === 'guest') {
+      return {
+        profile, view: view ?? 'dashboard',
+        assignments: INITIAL_STATE.assignments, isDemoData: true,
+        screen: 'dashboard', selectedId: INITIAL_STATE.selectedAssignment,
+      }
+    }
+    // Google user but no data yet — send to upload
+    return {
+      profile, view: 'dashboard',
+      assignments: INITIAL_STATE.assignments, isDemoData: true,
+      screen: 'upload', selectedId: INITIAL_STATE.selectedAssignment,
+    }
+  } catch { return null }
+})()
 
 // ── Up Next panel (shown in calendar sidebar) ────────────────────────────────
 const URGENCY_DOT = { high: '#F85149', medium: '#E3B341', low: '#3FB950' }
@@ -129,21 +178,29 @@ function UpNextPanel({ assignments }) {
 }
 
 export default function App({ googleEnabled = true }) {
-  const [screen, setScreen] = useState('auth') // 'auth' | 'upload' | 'dashboard'
-  const [view,   setView]   = useState('dashboard') // 'dashboard' | 'calendar' | 'chapters' | 'vitals'
-  const [theme,  setTheme]  = useState('dark') // 'dark' | 'light'
-  const [isDemoData, setIsDemoData] = useState(true)
+  const [screen, setScreen] = useState(_bootSession?.screen ?? 'auth')
+  const [view,   setView]   = useState(_bootSession?.view   ?? 'dashboard')
+  const [theme,  setTheme]  = useState(() => localStorage.getItem('scc_theme') ?? 'dark')
+  const [isDemoData, setIsDemoData] = useState(_bootSession?.isDemoData ?? true)
   const [mobileDashPanel, setMobileDashPanel] = useState('list')
-  const [calSideTab,     setCalSideTab]     = useState('details') // 'details' | 'upnext' | 'filter'
+  const [calSideTab,     setCalSideTab]     = useState('details')
 
   // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('scc_theme', theme)
   }, [theme])
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
-  const [googleToken,  setGoogleToken]  = useState(null)
-  const [googleProfile, setGoogleProfile] = useState(null)
+  const [googleToken,   setGoogleToken]   = useState(null) // not persisted — expires
+  const [googleProfile, setGoogleProfile] = useState(_bootSession?.profile ?? null)
+
+  // Persist session so reload restores the current screen/view
+  // (must be after googleProfile useState declaration)
+  useEffect(() => {
+    if (!googleProfile) { localStorage.removeItem('scc_session'); return }
+    localStorage.setItem('scc_session', JSON.stringify({ profile: googleProfile, view }))
+  }, [googleProfile, view])
   const [calEventIds,  setCalEventIds]  = useState({}) // { assignmentId -> gcal eventId }
   const [syncStatus,   setSyncStatus]   = useState('idle') // 'idle' | 'syncing' | 'synced' | 'error'
 
@@ -240,8 +297,9 @@ export default function App({ googleEnabled = true }) {
   const studyMeta = studyMode ? STUDY_MODE_META[studyMode] : null
 
   // ── Assignments ───────────────────────────────────────────────────────────────
-  const [selectedAssignment, setSelectedAssignment] = useState(INITIAL_STATE.selectedAssignment)
-  const [assignments,        setAssignments]        = useState(INITIAL_STATE.assignments)
+  const [selectedAssignment, setSelectedAssignment] = useState(_bootSession?.selectedId   ?? INITIAL_STATE.selectedAssignment)
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [selectedAssignment])
+  const [assignments,        setAssignments]        = useState(_bootSession?.assignments  ?? INITIAL_STATE.assignments)
   const [filterCourse,       setFilterCourse]       = useState(INITIAL_STATE.filterCourse)
   const [filterStatus,       setFilterStatus]       = useState(INITIAL_STATE.filterStatus)
   const [sortBy,             setSortBy]             = useState(INITIAL_STATE.sortBy)
@@ -308,8 +366,9 @@ export default function App({ googleEnabled = true }) {
       try {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setAssignments(parsed)
-          setSelectedAssignment(parsed[0].id)
+          const clean = sanitizeAssignments(parsed)
+          setAssignments(clean)
+          setSelectedAssignment(clean[0].id)
           setIsDemoData(false)
           setScreen('dashboard') // skip upload screen — data already exists
           return
@@ -348,8 +407,9 @@ export default function App({ googleEnabled = true }) {
       try {
         const parsed = JSON.parse(saved)
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setAssignments(parsed)
-          setSelectedAssignment(parsed[0].id)
+          const clean = sanitizeAssignments(parsed)
+          setAssignments(clean)
+          setSelectedAssignment(clean[0].id)
           setIsDemoData(false)
           setScreen('dashboard')
           return
@@ -360,6 +420,7 @@ export default function App({ googleEnabled = true }) {
   }
 
   function handleSignOut() {
+    localStorage.removeItem('scc_session')
     setShowProfile(false)
     setGoogleToken(null)
     setGoogleProfile(null)
@@ -371,14 +432,14 @@ export default function App({ googleEnabled = true }) {
 
   // ── Upload callback ───────────────────────────────────────────────────────────
   function handleAssignmentsLoaded(newAssignments) {
-    setAssignments(newAssignments)
-    setSelectedAssignment(newAssignments[0]?.id ?? '')
+    const clean = sanitizeAssignments(newAssignments)
+    setAssignments(clean)
+    setSelectedAssignment(clean[0]?.id ?? '')
     setScreen('dashboard')
     setShowUpload(false)
     setIsDemoData(false)
-    // Immediately persist for logged-in users
     if (storageKey) {
-      localStorage.setItem(storageKey, JSON.stringify(newAssignments))
+      localStorage.setItem(storageKey, JSON.stringify(clean))
     }
   }
 
@@ -404,14 +465,22 @@ export default function App({ googleEnabled = true }) {
   // ── Derived state ─────────────────────────────────────────────────────────────
   const selectedAssignmentObj = assignments.find((a) => a.id === selectedAssignment) ?? null
 
+  // Active (non-completed) assignments, filtered and sorted
   const visibleAssignments = assignments
+    .filter((a) => a.status !== 'completed')
     .filter((a) => filterCourse === 'all' || a.course === filterCourse)
-    .filter((a) => filterStatus === 'all' || a.status === filterStatus)
+    .filter((a) => filterStatus === 'all' || filterStatus === 'completed' ? true : a.status === filterStatus)
     .sort((a, b) => {
       if (sortBy === 'dueDate') return a.dueDate.localeCompare(b.dueDate)
       if (sortBy === 'weight')  return b.weight - a.weight
       return 0
     })
+
+  // Completed assignments — always available to browse regardless of active filter
+  const completedAssignments = assignments
+    .filter((a) => a.status === 'completed')
+    .filter((a) => filterCourse === 'all' || a.course === filterCourse)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 
   // ── Screens ───────────────────────────────────────────────────────────────────
   if (screen === 'auth') {
@@ -566,6 +635,7 @@ export default function App({ googleEnabled = true }) {
                   <DropdownItem icon="+ " label="Upload Syllabus" onClick={() => { setShowProfile(false); setShowUpload(true) }} />
                   <DropdownItem icon="🗑" label="Clear My Data" danger onClick={() => {
                     if (storageKey) localStorage.removeItem(storageKey)
+                    localStorage.removeItem('scc_session')
                     setAssignments(INITIAL_STATE.assignments)
                     setSelectedAssignment(INITIAL_STATE.selectedAssignment)
                     setIsDemoData(true)
@@ -596,6 +666,8 @@ export default function App({ googleEnabled = true }) {
           <div style={{ ...styles.panel, '--pd': '0ms' }} className="panel-from-left dash-list">
             <Browser
               assignments={visibleAssignments}
+              completedAssignments={completedAssignments}
+              allTotal={assignments.filter(a => filterCourse === 'all' || a.course === filterCourse).length}
               selectedAssignment={selectedAssignment}
               onSelect={(id) => { setSelectedAssignment(id); setMobileDashPanel('detail') }}
             />
@@ -612,7 +684,7 @@ export default function App({ googleEnabled = true }) {
           <div style={{ ...styles.panel, borderLeft: '1px solid var(--border)', '--pd': '120ms' }} className="panel-from-right dash-control">
             <Controller
               assignments={assignments}
-              filteredAssignments={visibleAssignments}
+              filteredAssignments={[...visibleAssignments, ...completedAssignments]}
               filterCourse={filterCourse}
               filterStatus={filterStatus}
               sortBy={sortBy}
