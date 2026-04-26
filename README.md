@@ -11,7 +11,7 @@ A React-based academic dashboard that uses AI to help students manage assignment
 | Layer | Technology |
 |---|---|
 | Framework | React 19 + Vite 8 |
-| AI | Google Gemini 2.5 Flash |
+| AI | OpenRouter (GPT-4o-mini) |
 | Auth | Google OAuth 2.0 (`@react-oauth/google`) |
 | PDF Parsing | `pdfjs-dist` |
 | Calendar Sync | Google Calendar API |
@@ -100,7 +100,7 @@ App.jsx owns: assignments[], selectedId, filter, sort, googleToken, userProfile
      │
      ├── DetailView ← reads assignments[selectedId]
      │              → calls setAssignments to update .notes and .quiz fields
-     │              → calls Gemini API (side effect, no shared state)
+     │              → calls OpenRouter API (side effect, no shared state)
      │
      └── Controller ← reads assignments[], filter, sort
                     → sets filter, sort
@@ -131,7 +131,8 @@ Every major direction given to AI during the build — what was asked, what was 
 | 12 | Apr 18 | Add `ParticleCanvas` animated background to the AuthScreen | Canvas re-initialized on every render because the particle array was created inside the component function body, not in a ref | **Moved particle state to `useRef`.** Array and animation frame ID live in refs — initialized once on mount, cleaned up on unmount. Canvas now runs at stable 60fps without accumulating ghost particles on re-render. |
 | 13 | Apr 18 | Overhaul AuthScreen — particle background, new layout, feature showcase cards, dark/light mode support | Feature cards were hardcoded strings. AuthScreen had no `data-theme` awareness — always rendered dark regardless of system preference | **Kept layout, added theme awareness and dynamic feature list.** Passed `theme` prop down from `App.jsx`. Feature cards pulled from an array so adding a new feature means one array entry, not six JSX changes. |
 | 14 | Apr 18 | Add chapter-level lecture notes — separate PDF upload for lecture slides, AI notes and quiz per chapter, sidebar navigation | AI generated one monolithic notes block for the entire PDF regardless of chapter breaks | **Rejected single-block output.** Changed the Gemini prompt to identify chapter headings from the extracted text and return one notes object per chapter. Sidebar navigation maps over the chapters array — selecting one swaps the DetailView content. |
-| 15 | Apr 18 | Add a context-aware AI chat assistant loaded with the student's full assignment list | Chatbot had no system context — responses were generic study tips with no knowledge of the student's actual courses or deadlines | **Injected full assignment context into system prompt.** Serialized `assignments[]` as a JSON block prepended to every Gemini request. Responses now reference specific course names, due dates, and weights from the student's real data. |
+| 15 | Apr 18 | Add a context-aware AI chat assistant loaded with the student's full assignment list | Chatbot had no system context — responses were generic study tips with no knowledge of the student's actual courses or deadlines | **Injected full assignment context into system prompt.** Serialized `assignments[]` as a JSON block prepended to every API request. Responses now reference specific course names, due dates, and weights from the student's real data. |
+| 16 | Apr 25 | Switch AI provider from Gemini to OpenRouter after rate limit and reliability issues during real testing | Gemini's free tier was throwing 429 errors frequently during PDF parsing and occasionally returning malformed JSON instead of the required array format, breaking the upload flow entirely | **Switched to OpenRouter routing to GPT-4o-mini.** All prompt logic stayed identical — only the API endpoint, auth header, and model ID changed. Rate limit issues stopped. JSON parsing reliability improved. Using a shared paid API key resolved the free-tier constraints entirely. |
 
 ---
 
@@ -139,9 +140,9 @@ Every major direction given to AI during the build — what was asked, what was 
 
 These are the moments where the build pushed back — either the AI produced something that had to be corrected, or a design decision turned out to be wrong in practice.
 
-**1. Gemini rate limits during PDF parsing**
+**1. Gemini rate limits and unreliable JSON during PDF parsing**
 
-The first implementation called Gemini once per file with no retry logic. On the free tier, uploading multiple PDFs simultaneously triggered `429` errors immediately. The fix required adding a retry loop with exponential backoff, parsing the `retryDelay` field from the error response, and surfacing a user-friendly message instead of a raw API error string.
+The first implementation called Gemini once per file with no retry logic. On the free tier, uploading multiple PDFs simultaneously triggered `429` errors immediately. Adding exponential backoff retry helped temporarily but Gemini's free tier limits were still too aggressive for real use, and it kept returning free-form text mixed in with the JSON array instead of clean parseable output. The real fix was switching the entire AI layer to OpenRouter using GPT-4o-mini through a paid API key. Rate limit errors stopped completely and JSON parsing became reliable.
 
 **2. CSS variables do not inherit across separate React trees**
 
@@ -169,23 +170,23 @@ The first guest implementation used a generic `scc_data` key in localStorage, wi
 
 **1. What did the AI do well that surprised you?**
 
-The Gemini prompt for syllabus parsing was more robust than expected. Given only a system instruction describing the JSON shape and a blob of extracted PDF text, it reliably pulled out assignment titles, weights, and due dates from syllabi that were poorly formatted — tables rendered as flat text, mixed date formats, inconsistent spacing. It even inferred urgency correctly based on a relative date rule embedded in the prompt. The failure rate was low enough that the app is actually usable on real syllabi.
+Honestly the syllabus parsing surprised me the most. I started with Gemini but it kept giving me issues, rate limiting me constantly and sometimes just returning garbage instead of the JSON I needed. I ended up switching to OpenRouter and using my friend's API key since he actually pays for it and has way better rate limits. Once I got that working, the parsing was way more reliable than I expected. I'd throw it a syllabus PDF that was honestly a mess, like tables that came out as flat text with weird spacing and random date formats, and it would still pull out the right assignment names, due dates, and weights. I thought I'd be fixing wrong outputs all the time but it actually just worked most of the time.
 
 **2. Where did directing the AI feel like real authorship?**
 
-The visual design decisions were entirely directive. The AI produced working code but the choices — urgency colour mapping (red/amber/green), the left accent bar on assignment cards, the confetti burst on marking complete, the entrance animation stagger using CSS `--i` custom property, the pulsing `urgentPulse` keyframe for near-deadline cards — all came from explicit instructions. The AI implemented them faithfully but did not invent them. That gap between "working" and "intentional" is where the authorship sits.
+Definitely the visual side of things. The AI would build whatever feature I asked for and it would technically work but it looked so generic. Every visual decision I actually cared about I had to spell out myself. The color system for urgency, red for overdue, amber for high, green for low. The little accent bar on the left side of each card. The confetti that pops when you mark something done. The way cards pulse when a deadline is less than 48 hours away. None of that came from the AI, I told it exactly what I wanted and it just wrote the code. It felt like I was the designer and the AI was just the person executing it.
 
 **3. What would you do differently if you started over?**
 
-Move the style system to a proper theme object from day one instead of hardcoded hex values in inline style objects. The CSS variable migration at the end was the most tedious part of the entire build — hundreds of individual replacements across eight files, all because the original structure made theming an afterthought rather than a foundation. Starting with a `theme.js` constants file or Tailwind CSS variables would have made the dark/light toggle a one-hour task instead of a multi-hour refactor.
+I would set up the color and theme system before writing a single component. I built everything with hardcoded hex values because it was just faster in the moment and I kept telling myself I'd clean it up later. When I finally added dark and light mode I had to go through every single file and replace every color one by one. It took so long and it was so tedious. If I had just used CSS variables from the start that whole thing would have been easy. It's one of those things where the shortcut at the beginning cost me way more time at the end.
 
 **4. What does this project reveal about AI-assisted development?**
 
-The AI is excellent at implementation and poor at sequencing. It will build whatever you ask, in whatever order you ask it, without warning you that the order creates technical debt. Building the entire UI with hardcoded colours and then asking for a theme system is a pattern the AI enables and does not discourage. Human judgment about *when* to build what — foundational concerns first, surface concerns last — is still entirely the developer's responsibility. The AI does not think in project arcs, only in tasks.
+The AI will never tell you that you're building things in the wrong order. That's the big thing I took away from this. It just does whatever you ask it to do and it does it pretty well but it has no sense of the bigger picture. I built the entire UI first with hardcoded everything and the AI never once said hey you might want to think about theming before you go further. It doesn't think about what decisions are going to make your life harder in two days. That's still completely on you as the developer. The AI is good at the task in front of it and blind to everything else.
 
 **5. What is the gap between what the AI built and what you intended?**
 
-The gap is mostly in feel. The code is correct and the features work, but some interactions are still mechanical — the upload flow does not give enough feedback during the Gemini parsing wait, the Settings modal is functional but sparse, and the transition between the auth screen and dashboard is abrupt. These are not bugs; they are polish gaps that accumulate when each feature is built in isolation. The AI completes the feature in scope but does not audit the experience holistically. That audit requires stepping back across the whole product, which is a human task.
+The features all work but some of it still feels a little rough around the edges. The loading state when you upload a PDF isn't great, you're just sitting there waiting and it doesn't really tell you what's happening. The settings modal does its job but it feels kind of empty. Some of the transitions are a bit abrupt. None of it is broken, it's more that the AI builds each thing in its own little bubble and doesn't think about how it connects to everything else. Getting the whole thing to feel cohesive and polished is something you have to do yourself because the AI doesn't step back and look at the full picture.
 
 ---
 
@@ -200,7 +201,7 @@ flowchart TD
         C -->|Yes → restore assignments| APP
         C -->|No| E[UploadScreen]
         E -->|PDF bytes| F[pdfjs-dist\nextracts raw text]
-        F -->|raw text string| G[Gemini 2.5 Flash\nreturns JSON array]
+        F -->|raw text string| G[OpenRouter / GPT-4o-mini\nreturns JSON array]
         G -->|setAssignments call| APP
     end
 
@@ -224,7 +225,7 @@ flowchart TD
     subgraph SIDE["Side Effects triggered by App.jsx state changes"]
         K["useEffect on assignments + googleToken\n→ Google Calendar API\nPATCH existing event or POST new\nstores calEventId back in state"]
         L["useEffect on assignments\n→ localStorage.setItem\nkey: scc_data_-profile.sub- or scc_data_guest"]
-        M["Gemini calls — on demand\nNotes: course + description → markdown\nQuiz: course + description → MCQ JSON\nChat: full assignments context + message → reply"]
+        M["OpenRouter calls — on demand\nNotes: course + description → markdown\nQuiz: course + description → MCQ JSON\nChat: full assignments context + message → reply"]
     end
 
     APP -->|assignments change| K
@@ -249,7 +250,7 @@ npm install
 cp .env.example .env
 # Fill in:
 #   VITE_GOOGLE_CLIENT_ID=...
-#   VITE_GEMINI_API_KEY=...
+#   VITE_OPENROUTER_API_KEY=...
 
 # 4. Run
 npm run dev
@@ -260,15 +261,15 @@ npm run dev
 | Variable | Required | Description |
 |---|---|---|
 | `VITE_GOOGLE_CLIENT_ID` | Optional | Enables Google login and Calendar sync |
-| `VITE_GEMINI_API_KEY` | Required | Powers PDF parsing, notes, quizzes, and chat |
+| `VITE_OPENROUTER_API_KEY` | Required | Powers PDF parsing, notes, quizzes, and chat via OpenRouter |
 
-The app runs in guest mode without `VITE_GOOGLE_CLIENT_ID`. It will not run without `VITE_GEMINI_API_KEY`.
+The app runs in guest mode without `VITE_GOOGLE_CLIENT_ID`. It will not run without `VITE_OPENROUTER_API_KEY`.
 
 ---
 
 ## Features at a Glance
 
-- **Syllabus PDF upload** — drag-and-drop, multi-file, Gemini extracts all assignments automatically
+- **Syllabus PDF upload** — drag-and-drop, multi-file, AI extracts all assignments automatically
 - **AI study notes** — generated per assignment from course + description context
 - **AI quiz** — 5 multiple-choice questions, instant feedback, score card
 - **AI chat assistant** — context-aware chatbot loaded with all your assignments
