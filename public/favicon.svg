@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A1628"/>
+      <stop offset="100%" stop-color="#130820"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#58A6FF"/>
+      <stop offset="100%" stop-color="#BC8CFF"/>
+    </linearGradient>
+    <linearGradient id="center" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7EC8FF"/>
+      <stop offset="100%" stop-color="#D4A8FF"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="100" height="100" rx="21" ry="21" fill="url(#bg)"/>
+
+  <!-- Faint background glow orb -->
+  <circle cx="50" cy="50" r="38" fill="#1E3A6E" opacity="0.18"/>
+
+  <!-- Outer decorative ring (faint) -->
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#58A6FF" stroke-width="0.7" opacity="0.18"/>
+
+  <!-- Mid ring (slightly more visible) -->
+  <circle cx="50" cy="50" r="33" fill="none" stroke="#7B9FD4" stroke-width="0.5" opacity="0.22"
+          stroke-dasharray="3 5"/>
+
+  <!-- Main ring with gradient + glow -->
+  <circle cx="50" cy="50" r="25" fill="none" stroke="url(#ring)" stroke-width="2.8"
+          filter="url(#glow)"/>
+
+  <!-- Inner ring -->
+  <circle cx="50" cy="50" r="13" fill="none" stroke="#BC8CFF" stroke-width="1.4" opacity="0.55"/>
+
+  <!-- Cardinal tick marks (N / S / E / W) outside main ring -->
+  <line x1="50" y1="10" x2="50" y2="22" stroke="#58A6FF" stroke-width="2.6"
+        stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="50" y1="78" x2="50" y2="90" stroke="#58A6FF" stroke-width="2.6"
+        stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="10" y1="50" x2="22" y2="50" stroke="#58A6FF" stroke-width="2.6"
+        stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="78" y1="50" x2="90" y2="50" stroke="#58A6FF" stroke-width="2.6"
+        stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Tiny endpoint dots on cardinal ticks -->
+  <circle cx="50" cy="10" r="2.2" fill="#58A6FF" filter="url(#glow)"/>
+  <circle cx="50" cy="90" r="2.2" fill="#58A6FF" filter="url(#glow)"/>
+  <circle cx="10" cy="50" r="2.2" fill="#58A6FF" filter="url(#glow)"/>
+  <circle cx="90" cy="50" r="2.2" fill="#58A6FF" filter="url(#glow)"/>
+
+  <!-- Diagonal corner ticks (45°) — shorter, purple -->
+  <line x1="22" y1="22" x2="29" y2="29" stroke="#BC8CFF" stroke-width="1.8"
+        stroke-linecap="round" opacity="0.65"/>
+  <line x1="78" y1="22" x2="71" y2="29" stroke="#BC8CFF" stroke-width="1.8"
+        stroke-linecap="round" opacity="0.65"/>
+  <line x1="22" y1="78" x2="29" y2="71" stroke="#BC8CFF" stroke-width="1.8"
+        stroke-linecap="round" opacity="0.65"/>
+  <line x1="78" y1="78" x2="71" y2="71" stroke="#BC8CFF" stroke-width="1.8"
+        stroke-linecap="round" opacity="0.65"/>
+
+  <!-- Center node: dark fill + gradient disc + white core -->
+  <circle cx="50" cy="50" r="7"   fill="#08101E"/>
+  <circle cx="50" cy="50" r="5.5" fill="url(#center)" filter="url(#softglow)"/>
+  <circle cx="50" cy="50" r="2.5" fill="white" opacity="0.95"/>
+</svg>
