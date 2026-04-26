@@ -337,12 +337,26 @@ const DEFAULT_LINKS = [
   { id: 'bm-6', emoji: '💻', label: 'GitHub',       url: 'https://github.com'             },
 ]
 
+const LINK_MIGRATIONS = {
+  'https://canvas.instructure.com': { emoji: '🎓', label: 'Blackboard', url: 'https://scad.blackboard.com' },
+  'https://scholar.google.com':     { emoji: '🏫', label: 'MySCAD',     url: 'https://my.scad.edu'         },
+  'https://notion.so':              { emoji: '📦', label: 'Dropbox',    url: 'https://dropbox.com'         },
+}
+
 function BookmarksWidget() {
   const [links,    setLinks]    = useLS('scc_bookmarks', DEFAULT_LINKS)
   const [adding,   setAdding]   = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newUrl,   setNewUrl]   = useState('')
   const [newEmoji, setNewEmoji] = useState('🔗')
+
+  useEffect(() => {
+    setLinks(prev => {
+      const migrated = prev.map(l => LINK_MIGRATIONS[l.url] ? { ...l, ...LINK_MIGRATIONS[l.url] } : l)
+      const changed = migrated.some((l, i) => l.url !== prev[i].url)
+      return changed ? migrated : prev
+    })
+  }, [])
 
   function save() {
     if (!newLabel.trim() || !newUrl.trim()) return
