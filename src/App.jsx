@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useGoogleLogin } from '@react-oauth/google'
 import { LayoutDashboard, CalendarDays, BookOpen, HeartPulse, Crosshair } from 'lucide-react'
 
@@ -185,11 +185,59 @@ export default function App({ googleEnabled = true }) {
   const [mobileDashPanel, setMobileDashPanel] = useState('list')
   const [calSideTab,     setCalSideTab]     = useState('details')
 
+  // Tab animation state
+  const navTabRefs  = useRef({})
+  const calTabRefs  = useRef({})
+  const [navIndicator, setNavIndicator] = useState(null)
+  const [calIndicator, setCalIndicator] = useState(null)
+  const [viewDirection, setViewDirection]   = useState('right')
+  const [calDirection,  setCalDirection]    = useState('right')
+  const [iconBounceKey, setIconBounceKey]   = useState({})
+  const VIEW_ORDER = ['dashboard', 'calendar', 'chapters', 'vitals', 'focus']
+  const CAL_TAB_ORDER = ['details', 'upnext', 'filter']
+
   // Apply theme to <html> so ALL screens (auth, upload, dashboard) inherit CSS vars
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('scc_theme', theme)
   }, [theme])
+
+  // Sliding tab indicator — update after DOM paints
+  useLayoutEffect(() => {
+    const el = navTabRefs.current[view]
+    if (el) setNavIndicator({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [view])
+
+  useLayoutEffect(() => {
+    const el = calTabRefs.current[calSideTab]
+    if (el) setCalIndicator({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [calSideTab])
+
+  function handleViewChange(id) {
+    const oldIdx = VIEW_ORDER.indexOf(view)
+    const newIdx = VIEW_ORDER.indexOf(id)
+    setViewDirection(newIdx >= oldIdx ? 'right' : 'left')
+    setIconBounceKey(k => ({ ...k, [id]: (k[id] ?? 0) + 1 }))
+    setView(id)
+  }
+
+  function handleCalTabChange(id) {
+    const oldIdx = CAL_TAB_ORDER.indexOf(calSideTab)
+    const newIdx = CAL_TAB_ORDER.indexOf(id)
+    setCalDirection(newIdx >= oldIdx ? 'right' : 'left')
+    setCalSideTab(id)
+  }
+
+  function addRipple(e) {
+    const btn = e.currentTarget
+    const rect = btn.getBoundingClientRect()
+    const span = document.createElement('span')
+    span.className = 'ripple'
+    span.style.left = `${e.clientX - rect.left}px`
+    span.style.top  = `${e.clientY - rect.top}px`
+    btn.appendChild(span)
+    setTimeout(() => span.remove(), 600)
+  }
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   const [googleToken,   setGoogleToken]   = useState(null) // not persisted — expires
@@ -523,25 +571,27 @@ export default function App({ googleEnabled = true }) {
           <span style={styles.brandText}>Study Command Center</span>
         </div>
 
-        <div style={styles.tabs} className="scc-tabs">
+        <div style={{ ...styles.tabs, position: 'relative' }} className="scc-tabs">
           {[
             { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard, accentColor: '#58A6FF' },
             { id: 'calendar',  label: 'Calendar',  Icon: CalendarDays,     accentColor: '#58A6FF' },
             { id: 'chapters',  label: 'Chapters',  Icon: BookOpen,         accentColor: '#BC8CFF' },
-            { id: 'vitals',    label: 'Vitals',    Icon: HeartPulse,       accentColor: studyMeta?.color ?? '#F85149', dotColor: studyMeta?.color },
+            { id: 'vitals',    label: 'Vitals',    Icon: HeartPulse,       accentColor: studyMeta?.color ?? '#F85149' },
             { id: 'focus',     label: 'Focus Hub', Icon: Crosshair,        accentColor: '#E3B341' },
-          ].map(({ id, label, Icon, accentColor, dotColor }) => {
+          ].map(({ id, label, Icon, accentColor }) => {
             const isActive = view === id
+            const bounceKey = iconBounceKey[id] ?? 0
             return (
               <button
                 key={id}
-                className="nav-tab"
+                ref={el => { navTabRefs.current[id] = el }}
+                className="nav-tab tab-ripple-host"
                 data-active={isActive ? 'true' : 'false'}
-                onClick={() => setView(id)}
+                onClick={e => { addRipple(e); handleViewChange(id) }}
                 style={{
                   ...styles.tab,
                   color:           isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                  borderBottom:    isActive ? `2px solid ${accentColor}` : '2px solid transparent',
+                  borderBottom:    '2px solid transparent',
                   backgroundColor: isActive ? 'var(--bg-elevated)' : 'transparent',
                   position:        'relative',
                   display:         'flex',
@@ -550,32 +600,46 @@ export default function App({ googleEnabled = true }) {
                 }}
               >
                 <Icon
+                  key={bounceKey}
                   size={15}
                   strokeWidth={isActive ? 2.2 : 1.8}
                   style={{
-                    color:      isActive ? accentColor : 'inherit',
+                    color:     isActive ? accentColor : 'inherit',
                     flexShrink: 0,
-                    transition: 'color 0.15s',
+                    transition: 'color 0.2s',
+                    animation:  bounceKey > 0 ? 'tabIconBounce 0.42s cubic-bezier(.16,1,.3,1) both' : 'none',
                   }}
                 />
-                {label}
+                <span style={{
+                  animation: isActive && bounceKey > 0 ? 'tabLabelPop 0.35s cubic-bezier(.16,1,.3,1) both' : 'none',
+                  fontWeight: isActive ? 700 : 600,
+                  transition: 'font-weight 0s',
+                }}>{label}</span>
                 {id === 'vitals' && biometricData && studyMeta && (
                   <span style={{
-                    display:         'inline-block',
-                    width:           '7px',
-                    height:          '7px',
-                    borderRadius:    '50%',
-                    backgroundColor: studyMeta.color,
-                    marginLeft:      '2px',
-                    boxShadow:       `0 0 6px ${studyMeta.color}`,
-                    animation:       'brand-dot-pulse 2s ease-in-out infinite',
-                    verticalAlign:   'middle',
-                    marginBottom:    '1px',
+                    display: 'inline-block', width: '7px', height: '7px',
+                    borderRadius: '50%', backgroundColor: studyMeta.color,
+                    marginLeft: '2px', boxShadow: `0 0 6px ${studyMeta.color}`,
+                    animation: 'brand-dot-pulse 2s ease-in-out infinite',
+                    verticalAlign: 'middle', marginBottom: '1px',
                   }} />
                 )}
               </button>
             )
           })}
+
+          {/* Sliding active indicator */}
+          {navIndicator && (
+            <div style={{
+              position: 'absolute', bottom: 0,
+              left: navIndicator.left, width: navIndicator.width,
+              height: '2px',
+              background: 'linear-gradient(90deg, #58A6FF, #BC8CFF)',
+              borderRadius: '2px 2px 0 0',
+              transition: 'left 0.28s cubic-bezier(.16,1,.3,1), width 0.28s cubic-bezier(.16,1,.3,1)',
+              boxShadow: '0 0 8px #58A6FF88',
+            }} />
+          )}
         </div>
 
         <div style={styles.rightGroup}>
@@ -697,7 +761,7 @@ export default function App({ googleEnabled = true }) {
           </div>
         </div>
       ) : view === 'calendar' ? (
-        <div key="calendar" style={styles.calLayout} className="animate-fadeIn">
+        <div key="calendar" style={styles.calLayout} className={viewDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <CalendarView
               assignments={visibleAssignments}
@@ -721,61 +785,82 @@ export default function App({ googleEnabled = true }) {
                 { id: 'upnext',  label: '📌 Up Next' },
                 { id: 'filter',  label: '⚙ Filter'   },
               ].map(({ id, label }) => (
-                <button key={id} onClick={() => setCalSideTab(id)} style={{
-                  flex: 1, padding: '10px 6px', background: 'none',
-                  border: 'none', borderBottom: calSideTab === id ? '2px solid #58A6FF' : '2px solid transparent',
-                  color: calSideTab === id ? 'var(--text-primary)' : 'var(--text-muted)',
-                  fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
-                  fontFamily: "'Inter', system-ui, sans-serif",
-                  marginBottom: '-1px', transition: 'color .15s',
-                }}>{label}</button>
+                <button
+                  key={id}
+                  ref={el => { calTabRefs.current[id] = el }}
+                  className="tab-ripple-host"
+                  style={{
+                    flex: 1, padding: '10px 6px', background: 'none', position: 'relative',
+                    border: 'none', borderBottom: '2px solid transparent',
+                    color: calSideTab === id ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontSize: '0.72rem', fontWeight: calSideTab === id ? 700 : 600, cursor: 'pointer',
+                    fontFamily: "'Inter', system-ui, sans-serif",
+                    marginBottom: '-1px', transition: 'color .2s',
+                  }}
+                  onClick={e => { addRipple(e); handleCalTabChange(id) }}
+                >{label}</button>
               ))}
+              {/* Sliding indicator */}
+              {calIndicator && (
+                <div style={{
+                  position: 'absolute', bottom: 0,
+                  left: calIndicator.left, width: calIndicator.width,
+                  height: '2px', background: '#58A6FF',
+                  borderRadius: '2px 2px 0 0',
+                  transition: 'left 0.25s cubic-bezier(.16,1,.3,1), width 0.25s cubic-bezier(.16,1,.3,1)',
+                  boxShadow: '0 0 6px #58A6FF88',
+                }} />
+              )}
             </div>
 
             {/* ── Tab content ─────────────────────────────────────── */}
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {calSideTab === 'details' && (
-                <DetailView
-                  compact
-                  selectedAssignment={selectedAssignmentObj}
-                  onNotesGenerated={handleNotesGenerated}
-                  onQuizGenerated={handleQuizGenerated}
-                  biometricData={biometricData}
-                  studyMode={studyMode}
-                />
+                <div key="cal-details" className={calDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
+                  <DetailView
+                    compact
+                    selectedAssignment={selectedAssignmentObj}
+                    onNotesGenerated={handleNotesGenerated}
+                    onQuizGenerated={handleQuizGenerated}
+                    biometricData={biometricData}
+                    studyMode={studyMode}
+                  />
+                </div>
               )}
               {calSideTab === 'upnext' && (
-                <div style={{ padding: '14px' }}>
+                <div key="cal-upnext" className={calDirection === 'right' ? 'slide-from-right' : 'slide-from-left'} style={{ padding: '14px' }}>
                   <UpNextPanel assignments={visibleAssignments} />
                 </div>
               )}
               {calSideTab === 'filter' && (
-                <Controller
-                  assignments={assignments}
-                  filteredAssignments={visibleAssignments}
-                  filterCourse={filterCourse}
-                  filterStatus={filterStatus}
-                  sortBy={sortBy}
-                  selectedAssignment={selectedAssignment}
-                  onFilterCourse={setFilterCourse}
-                  onFilterStatus={setFilterStatus}
-                  onSortBy={setSortBy}
-                  onMarkComplete={handleMarkComplete}
-                />
+                <div key="cal-filter" className={calDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
+                  <Controller
+                    assignments={assignments}
+                    filteredAssignments={visibleAssignments}
+                    filterCourse={filterCourse}
+                    filterStatus={filterStatus}
+                    sortBy={sortBy}
+                    selectedAssignment={selectedAssignment}
+                    onFilterCourse={setFilterCourse}
+                    onFilterStatus={setFilterStatus}
+                    onSortBy={setSortBy}
+                    onMarkComplete={handleMarkComplete}
+                  />
+                </div>
               )}
             </div>
           </div>
         </div>
       ) : view === 'chapters' ? (
-        <div key="chapters" style={styles.chaptersLayout} className="animate-fadeIn">
+        <div key="chapters" style={styles.chaptersLayout} className={viewDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
           <ChapterNotes />
         </div>
       ) : view === 'focus' ? (
-        <div key="focus" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className="animate-fadeIn">
+        <div key="focus" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className={viewDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
           <FocusHub />
         </div>
       ) : (
-        <div key="vitals" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className="animate-fadeIn">
+        <div key="vitals" style={{ position: 'relative', zIndex: 1, display: 'flex', flex: 1, overflow: 'hidden', backgroundColor: 'transparent' }} className={viewDirection === 'right' ? 'slide-from-right' : 'slide-from-left'}>
           <BiometricPanel
             biometricData={biometricData}
             biometricLoading={biometricLoading}

@@ -200,12 +200,78 @@ select option { background-color: var(--bg-surface); color: var(--text-primary);
   0%,100% { box-shadow: 0 0 0 0 rgba(88,166,255,.6), 0 0 8px rgba(88,166,255,.3); }
   55%     { box-shadow: 0 0 0 6px rgba(88,166,255,.0), 0 0 18px rgba(88,166,255,.15); }
 }
+@keyframes contentReveal {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes statusFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes tabEnterRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes tabEnterLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes tabExitLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-18px); }
+}
+@keyframes tabExitRight {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(18px); }
+}
+@keyframes tabIconBounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-4px); }
+  70%  { transform: translateY(1px); }
+  100% { transform: translateY(0); }
+}
+@keyframes tabRipple {
+  to { transform: scale(10); opacity: 0; }
+}
+@keyframes tabLabelPop {
+  0%   { opacity: 0.7; }
+  100% { opacity: 1; }
+}
 
 /* ── Utility classes ─────────────────────────────────────────────────────── */
-.animate-slideUp   { animation: slideUp    .48s cubic-bezier(.16,1,.3,1) both; }
-.animate-slideDown { animation: slideDown  .36s cubic-bezier(.16,1,.3,1) both; }
-.animate-fadeIn    { animation: panelFadeUp .38s cubic-bezier(.16,1,.3,1) both; }
-.animate-popIn     { animation: popIn       .42s cubic-bezier(.16,1,.3,1) both; }
+.animate-slideUp      { animation: slideUp       .4s  cubic-bezier(.16,1,.3,1) both; }
+.animate-slideDown    { animation: slideDown     .32s cubic-bezier(.16,1,.3,1) both; }
+.animate-fadeIn       { animation: panelFadeUp   .35s cubic-bezier(.16,1,.3,1) both; }
+.animate-popIn        { animation: popIn         .38s cubic-bezier(.16,1,.3,1) both; }
+.animate-reveal       { animation: contentReveal .4s  cubic-bezier(.16,1,.3,1) both; }
+.slide-from-right     { animation: slideFromRight .38s cubic-bezier(0.4,0,0.2,1) both; }
+.slide-from-left      { animation: slideFromLeft  .38s cubic-bezier(0.4,0,0.2,1) both; }
+
+/* Ripple host must be position:relative; overflow:hidden */
+.tab-ripple-host {
+  position: relative;
+  overflow: hidden;
+}
+.tab-ripple-host .ripple {
+  position: absolute;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  background: rgba(255,255,255,0.25);
+  animation: tabRipple 0.55s ease-out forwards;
+  pointer-events: none;
+  margin-left: -5px;
+  margin-top: -5px;
+}
 
 .panel-from-left {
   animation: panelFromLeft .42s cubic-bezier(.16,1,.3,1) both;

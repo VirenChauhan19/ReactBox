@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
@@ -38,6 +38,9 @@ async function extractPdfText(file) {
   }
   return text
 }
+
+const NOTE_MSGS = ['Analyzing chapter…', 'Identifying key concepts…', 'Structuring content…', 'Writing study notes…']
+const QUIZ_MSGS = ['Reading chapter…', 'Generating questions…', 'Creating answer choices…', 'Finalizing quiz…']
 
 // ── Quiz component ────────────────────────────────────────────────────────────
 function QuizView({ questions }) {
@@ -109,15 +112,157 @@ function QuizView({ questions }) {
   )
 }
 
+// ── Content push-transition pane ─────────────────────────────────────────────
+function ChapterContentSlider({ notes, quiz, activeTab, quizVersion, notesStyle }) {
+  const currentRef = useRef(activeTab)
+  const [exiting,  setExiting]  = useState(null)
+  const [animKey,  setAnimKey]  = useState(0)
+  const dirRef = useRef('right')
+  const ORDER  = ['notes', 'quiz']
+  const DUR    = '0.36s'
+  const EASE   = 'cubic-bezier(0.4,0,0.2,1)'
+
+  useLayoutEffect(() => {
+    if (activeTab === currentRef.current) return
+    dirRef.current = ORDER.indexOf(activeTab) > ORDER.indexOf(currentRef.current) ? 'right' : 'left'
+    const leaving = currentRef.current
+    currentRef.current = activeTab
+    setExiting(leaving)
+    setAnimKey(k => k + 1)
+    const t = setTimeout(() => setExiting(null), 380)
+    return () => clearTimeout(t)
+  }, [activeTab])
+
+  function getContent(tab) {
+    if (tab === 'notes' && notes)        return <div style={notesStyle}>{notes}</div>
+    if (tab === 'quiz'  && quiz?.length) return <QuizView key={quizVersion} questions={quiz} />
+    return null
+  }
+
+  const dir          = dirRef.current
+  const enterContent = getContent(activeTab)
+  const exitContent  = exiting ? getContent(exiting) : null
+  if (!enterContent && !exitContent) return null
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {enterContent && (
+        <div key={animKey} style={{
+          animation: exiting
+            ? `${dir === 'right' ? 'tabEnterRight' : 'tabEnterLeft'} ${DUR} ${EASE} both`
+            : 'none',
+        }}>
+          {enterContent}
+        </div>
+      )}
+      {exitContent && (
+        <div key={`x-${exiting}`} style={{
+          position: 'absolute', inset: 0, overflow: 'hidden',
+          animation: `${dir === 'right' ? 'tabExitLeft' : 'tabExitRight'} ${DUR} ${EASE} both`,
+          pointerEvents: 'none',
+        }}>
+          {exitContent}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Generating skeleton ───────────────────────────────────────────────────────
+function ChapterGeneratingSkeleton({ type, status, color }) {
+  const line = (w, h = 10, delay = 0) => ({
+    display: 'block',
+    width: typeof w === 'number' ? `${w}%` : w,
+    height: `${h}px`,
+    borderRadius: '5px',
+    background: 'linear-gradient(90deg, var(--bg-surface) 0%, var(--bg-elevated) 50%, var(--bg-surface) 100%)',
+    backgroundSize: '200% 100%',
+    animation: `chapterShimmer 1.6s ease-in-out ${delay}ms infinite`,
+    flexShrink: 0,
+  })
+
+  return (
+    <div style={{ marginTop: '16px', animation: 'chapterFadeIn 0.35s ease both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <span style={{
+          width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+          backgroundColor: color, boxShadow: `0 0 6px ${color}88`,
+          animation: 'chapterDotPulse 1.4s ease-in-out infinite',
+        }} />
+        <span key={status} style={{
+          fontSize: '0.73rem', color, fontWeight: 500,
+          animation: 'chapterStatusFade 0.35s ease both',
+        }}>
+          {status}
+        </span>
+      </div>
+
+      {type === 'notes' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          <span style={line(52, 13, 0)} />
+          {[88, 72, 95, 65, 80].map((w, i) => <span key={i} style={line(w, 10, i * 80)} />)}
+          <span style={{ ...line(42, 13, 400), marginTop: '10px' }} />
+          {[75, 90, 60, 82, 55].map((w, i) => <span key={i + 5} style={line(w, 10, (i + 5) * 80)} />)}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[80, 75, 85, 70, 78, 82].map((qw, qi) => (
+            <div key={qi} style={{
+              padding: '12px 14px', border: '1px solid var(--border)', borderRadius: '10px',
+              display: 'flex', flexDirection: 'column', gap: '7px',
+              animation: `chapterSlideUp 0.4s ease ${qi * 80}ms both`,
+            }}>
+              <span style={line(qw, 11, qi * 60)} />
+              {[62, 70, 58, 66].map((cw, ci) => (
+                <span key={ci} style={{ ...line(cw, 9, qi * 60 + ci * 40), marginLeft: '12px' }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Chapter detail panel ──────────────────────────────────────────────────────
 function ChapterDetail({ chapter, onNotesGenerated, onQuizGenerated }) {
-  const [notesLoading, setNotesLoading] = useState(false)
-  const [quizLoading, setQuizLoading] = useState(false)
-  const [notesError, setNotesError] = useState('')
-  const [quizError, setQuizError] = useState('')
-  const [activeTab, setActiveTab] = useState('notes')
-  const [notesHov, setNotesHov] = useState(false)
-  const [quizHov, setQuizHov] = useState(false)
+  const [notesLoading,   setNotesLoading]   = useState(false)
+  const [quizLoading,    setQuizLoading]    = useState(false)
+  const [notesError,     setNotesError]     = useState('')
+  const [quizError,      setQuizError]      = useState('')
+  const [activeTab,      setActiveTab]      = useState('notes')
+  const [tabDirection,   setTabDirection]   = useState('right')
+  const [notesHov,       setNotesHov]       = useState(false)
+  const [quizHov,        setQuizHov]        = useState(false)
+  const [notesStatusIdx, setNotesStatusIdx] = useState(0)
+  const [quizStatusIdx,  setQuizStatusIdx]  = useState(0)
+  const [notesVersion,   setNotesVersion]   = useState(0)
+  const [quizVersion,    setQuizVersion]    = useState(0)
+  const chTabRefs      = useRef({})
+  const [chTabIndicator, setChTabIndicator] = useState(null)
+
+  useLayoutEffect(() => {
+    const el = chTabRefs.current[activeTab]
+    if (el) setChTabIndicator({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [activeTab, chapter?.notes, chapter?.quiz])
+
+  function handleChTabChange(tab) {
+    const order = ['notes', 'quiz']
+    setTabDirection(order.indexOf(tab) > order.indexOf(activeTab) ? 'right' : 'left')
+    setActiveTab(tab)
+  }
+
+  useEffect(() => {
+    if (!notesLoading) { setNotesStatusIdx(0); return }
+    const id = setInterval(() => setNotesStatusIdx(i => (i + 1) % NOTE_MSGS.length), 1800)
+    return () => clearInterval(id)
+  }, [notesLoading])
+
+  useEffect(() => {
+    if (!quizLoading) { setQuizStatusIdx(0); return }
+    const id = setInterval(() => setQuizStatusIdx(i => (i + 1) % QUIZ_MSGS.length), 1800)
+    return () => clearInterval(id)
+  }, [quizLoading])
 
   if (!chapter) {
     return (
@@ -139,6 +284,7 @@ function ChapterDetail({ chapter, onNotesGenerated, onQuizGenerated }) {
         `Chapter/Class: ${chapter.name}\nCourse: ${chapter.course || 'General'}\n\nContent:\n${chapter.text.slice(0, 12000)}`
       )
       onNotesGenerated(chapter.id, result)
+      setNotesVersion(v => v + 1)
       setActiveTab('notes')
     } catch (err) { setNotesError(err.message) }
     finally { setNotesLoading(false) }
@@ -158,6 +304,7 @@ Return ONLY a valid JSON array, no markdown, no explanation:
       const parsed = JSON.parse(clean)
       if (!Array.isArray(parsed)) throw new Error('Response was not a JSON array')
       onQuizGenerated(chapter.id, parsed)
+      setQuizVersion(v => v + 1)
       setActiveTab('quiz')
     } catch (err) { setQuizError(err.message) }
     finally { setQuizLoading(false) }
@@ -235,33 +382,77 @@ Return ONLY a valid JSON array, no markdown, no explanation:
       {notesError && <div style={d.errorBox} className="chapter-slide-down">⚠ {notesError}</div>}
       {quizError && <div style={d.errorBox} className="chapter-slide-down">⚠ {quizError}</div>}
 
+      {notesLoading && <ChapterGeneratingSkeleton type="notes" status={NOTE_MSGS[notesStatusIdx]} color="#58A6FF" />}
+      {quizLoading  && <ChapterGeneratingSkeleton type="quiz"  status={QUIZ_MSGS[quizStatusIdx]}  color="#BC8CFF" />}
+
       {/* Tabs */}
-      {(chapter.notes || (chapter.quiz && chapter.quiz.length > 0)) && (
-        <div style={d.tabBar}>
+      {!notesLoading && !quizLoading && (chapter.notes || (chapter.quiz && chapter.quiz.length > 0)) && (
+        <div style={{ ...d.tabBar, position: 'relative' }}>
           {chapter.notes && (
             <button
-              style={{ ...d.tabBtn, color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'notes' ? '2px solid #58A6FF' : '2px solid transparent', backgroundColor: activeTab === 'notes' ? 'var(--bg-elevated)' : 'transparent' }}
-              onClick={() => setActiveTab('notes')}
+              ref={el => { chTabRefs.current['notes'] = el }}
+              className="tab-ripple-host"
+              style={{
+                ...d.tabBtn,
+                color: activeTab === 'notes' ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: '2px solid transparent',
+                backgroundColor: activeTab === 'notes' ? 'var(--bg-elevated)' : 'transparent',
+                fontWeight: activeTab === 'notes' ? 700 : 600,
+                transform: activeTab === 'notes' ? 'scale(1.04)' : 'scale(1)',
+                transition: 'color .2s, background-color .2s, transform .2s',
+              }}
+              onClick={e => {
+                const btn = e.currentTarget; const rect = btn.getBoundingClientRect()
+                const s = document.createElement('span'); s.className = 'ripple'
+                s.style.left = `${e.clientX - rect.left}px`; s.style.top = `${e.clientY - rect.top}px`
+                btn.appendChild(s); setTimeout(() => s.remove(), 600)
+                handleChTabChange('notes')
+              }}
             >📝 Notes</button>
           )}
           {chapter.quiz && chapter.quiz.length > 0 && (
             <button
-              style={{ ...d.tabBtn, color: activeTab === 'quiz' ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: activeTab === 'quiz' ? '2px solid #BC8CFF' : '2px solid transparent', backgroundColor: activeTab === 'quiz' ? 'var(--bg-elevated)' : 'transparent' }}
-              onClick={() => setActiveTab('quiz')}
+              ref={el => { chTabRefs.current['quiz'] = el }}
+              className="tab-ripple-host"
+              style={{
+                ...d.tabBtn,
+                color: activeTab === 'quiz' ? 'var(--text-primary)' : 'var(--text-muted)',
+                borderBottom: '2px solid transparent',
+                backgroundColor: activeTab === 'quiz' ? 'var(--bg-elevated)' : 'transparent',
+                fontWeight: activeTab === 'quiz' ? 700 : 600,
+                transform: activeTab === 'quiz' ? 'scale(1.04)' : 'scale(1)',
+                transition: 'color .2s, background-color .2s, transform .2s',
+              }}
+              onClick={e => {
+                const btn = e.currentTarget; const rect = btn.getBoundingClientRect()
+                const s = document.createElement('span'); s.className = 'ripple'
+                s.style.left = `${e.clientX - rect.left}px`; s.style.top = `${e.clientY - rect.top}px`
+                btn.appendChild(s); setTimeout(() => s.remove(), 600)
+                handleChTabChange('quiz')
+              }}
             >🎯 Quiz</button>
+          )}
+          {chTabIndicator && (
+            <div style={{
+              position: 'absolute', bottom: 0,
+              left: chTabIndicator.left, width: chTabIndicator.width,
+              height: '2px', background: activeTab === 'notes' ? '#58A6FF' : '#BC8CFF',
+              borderRadius: '2px 2px 0 0',
+              transition: 'left 0.25s cubic-bezier(.16,1,.3,1), width 0.25s cubic-bezier(.16,1,.3,1), background 0.2s',
+              boxShadow: `0 0 6px ${activeTab === 'notes' ? '#58A6FF88' : '#BC8CFF88'}`,
+            }} />
           )}
         </div>
       )}
 
-      {activeTab === 'notes' && chapter.notes && (
-        <div key="notes" style={d.notesBlock} className="chapter-fade-in">
-          {chapter.notes}
-        </div>
-      )}
-      {activeTab === 'quiz' && chapter.quiz && chapter.quiz.length > 0 && (
-        <div key="quiz" className="chapter-slide-up">
-          <QuizView questions={chapter.quiz} />
-        </div>
+      {!notesLoading && !quizLoading && (
+        <ChapterContentSlider
+          notes={chapter.notes}
+          quiz={chapter.quiz}
+          activeTab={activeTab}
+          quizVersion={quizVersion}
+          notesStyle={d.notesBlock}
+        />
       )}
     </div>
   )
@@ -554,11 +745,29 @@ const CSS = `
     50%      { opacity: 1; }
   }
 
+  @keyframes chapterContentReveal {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes chapterShimmer {
+    from { background-position: -200% center; }
+    to   { background-position:  200% center; }
+  }
+  @keyframes chapterStatusFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes chapterDotPulse {
+    0%,100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+    60%     { box-shadow: 0 0 0 5px transparent; opacity: 0.7; }
+  }
+
   .chapter-fade-in    { animation: chapterFadeIn .3s ease both; }
   .chapter-slide-up   { animation: chapterSlideUp .35s ease both; }
   .chapter-slide-down { animation: chapterSlideDown .25s ease both; }
   .chapter-pop-in     { animation: chapterPopIn .35s cubic-bezier(.16,1,.3,1) both; }
   .chapter-float      { animation: chapterFloat 3s ease-in-out infinite; }
+  .chapter-reveal     { animation: chapterContentReveal .4s cubic-bezier(0.4,0,0.2,1) both; }
 
   .chapter-card-enter {
     animation: chapterCardEnter .3s ease both;

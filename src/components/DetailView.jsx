@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 
 const STATUS_LABEL = { 'not-started': 'Not Started', 'in-progress': 'In Progress', completed: 'Completed' }
 const STATUS_COLOR = { 'not-started': '#8B949E', 'in-progress': '#E3B341', completed: '#3FB950' }
@@ -182,6 +182,9 @@ function renderNotes(text) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
+const NOTE_MSGS = ['Analyzing assignment…', 'Identifying key concepts…', 'Structuring content…', 'Writing study notes…']
+const QUIZ_MSGS = ['Reading assignment…', 'Generating questions…', 'Creating answer choices…', 'Finalizing quiz…']
+
 const STUDY_MODE_HINTS = {
   peak:   { notesStyle: 'Go deep — include advanced details, edge cases, and exam traps. This student is in peak cognitive state.',   quizStyle: 'Make the questions challenging with nuanced answer choices.' },
   review: { notesStyle: 'Focus on key concepts and memorable summaries. Reinforce existing knowledge concisely.',                     quizStyle: 'Balance difficulty — some recall, some application questions.'     },
@@ -189,14 +192,46 @@ const STUDY_MODE_HINTS = {
 }
 
 export default function DetailView({ selectedAssignment, onNotesGenerated, onQuizGenerated, biometricData, studyMode, compact }) {
-  const [notesLoading, setNotesLoading] = useState(false)
-  const [quizLoading,  setQuizLoading]  = useState(false)
-  const [notesError,   setNotesError]   = useState('')
-  const [quizError,    setQuizError]    = useState('')
-  const [activeTab,    setActiveTab]    = useState('notes') // 'notes' | 'quiz'
+  const [notesLoading,    setNotesLoading]    = useState(false)
+  const [quizLoading,     setQuizLoading]     = useState(false)
+  const [notesError,      setNotesError]      = useState('')
+  const [quizError,       setQuizError]       = useState('')
+  const [activeTab,       setActiveTab]       = useState('notes')
+  const [tabDirection,    setTabDirection]    = useState('right')
+  const [notesStatusIdx,  setNotesStatusIdx]  = useState(0)
+  const [quizStatusIdx,   setQuizStatusIdx]   = useState(0)
+  const [notesVersion,    setNotesVersion]    = useState(0)
+  const [quizVersion,     setQuizVersion]     = useState(0)
+  const tabRefs     = useRef({})
+  const [tabIndicator, setTabIndicator] = useState(null)
 
   // Reset tab when assignment changes
   useEffect(() => { setActiveTab('notes') }, [selectedAssignment?.id])
+
+  // Sliding indicator
+  useLayoutEffect(() => {
+    const el = tabRefs.current[activeTab]
+    if (el) setTabIndicator({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [activeTab, selectedAssignment?.notes, selectedAssignment?.quiz])
+
+  function handleTabChange(tab) {
+    const order = ['notes', 'quiz']
+    setTabDirection(order.indexOf(tab) > order.indexOf(activeTab) ? 'right' : 'left')
+    setActiveTab(tab)
+  }
+
+  // Cycle status messages during generation
+  useEffect(() => {
+    if (!notesLoading) { setNotesStatusIdx(0); return }
+    const id = setInterval(() => setNotesStatusIdx(i => (i + 1) % NOTE_MSGS.length), 1800)
+    return () => clearInterval(id)
+  }, [notesLoading])
+
+  useEffect(() => {
+    if (!quizLoading) { setQuizStatusIdx(0); return }
+    const id = setInterval(() => setQuizStatusIdx(i => (i + 1) % QUIZ_MSGS.length), 1800)
+    return () => clearInterval(id)
+  }, [quizLoading])
 
   if (!selectedAssignment) {
     return (
@@ -229,6 +264,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         `Course: ${course}\nAssignment: ${title}\nDescription: ${description}${bioCtx}`
       )
       onNotesGenerated(id, result)
+      setNotesVersion(v => v + 1)
       setActiveTab('notes')
     } catch (err) { setNotesError(err.message) }
     finally { setNotesLoading(false) }
@@ -249,6 +285,7 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
       const parsed = JSON.parse(clean)
       if (!Array.isArray(parsed)) throw new Error('Response was not a JSON array')
       onQuizGenerated(id, parsed)
+      setQuizVersion(v => v + 1)
       setActiveTab('quiz')
     } catch (err) { setQuizError(err.message) }
     finally { setQuizLoading(false) }
@@ -412,21 +449,34 @@ export default function DetailView({ selectedAssignment, onNotesGenerated, onQui
         {notesError && <ErrorBox msg={notesError} />}
         {quizError  && <ErrorBox msg={quizError}  />}
 
+        {notesLoading && <GeneratingSkeleton type="notes" status={NOTE_MSGS[notesStatusIdx]} color="#58A6FF" />}
+        {quizLoading  && <GeneratingSkeleton type="quiz"  status={QUIZ_MSGS[quizStatusIdx]}  color="#BC8CFF" />}
+
         {/* ── Content tabs ────────────────────────────────────── */}
-        {(notes || (quiz && quiz.length > 0)) && (
-          <div style={s.tabBar}>
-            {notes            && <TabBtn active={activeTab === 'notes'} onClick={() => setActiveTab('notes')}>📝 Notes</TabBtn>}
-            {quiz?.length > 0 && <TabBtn active={activeTab === 'quiz'}  onClick={() => setActiveTab('quiz')}>🎯 Quiz</TabBtn>}
+        {!notesLoading && !quizLoading && (notes || (quiz && quiz.length > 0)) && (
+          <div style={{ ...s.tabBar, position: 'relative' }}>
+            {notes            && <TabBtn tabRef={el => { tabRefs.current['notes'] = el }} active={activeTab === 'notes'} onClick={() => handleTabChange('notes')}>📝 Notes</TabBtn>}
+            {quiz?.length > 0 && <TabBtn tabRef={el => { tabRefs.current['quiz']  = el }} active={activeTab === 'quiz'}  onClick={() => handleTabChange('quiz')}>🎯 Quiz</TabBtn>}
+            {tabIndicator && (
+              <div style={{
+                position: 'absolute', bottom: 0,
+                left: tabIndicator.left, width: tabIndicator.width,
+                height: '2px', background: activeTab === 'notes' ? '#58A6FF' : '#BC8CFF',
+                borderRadius: '2px 2px 0 0',
+                transition: 'left 0.25s cubic-bezier(.16,1,.3,1), width 0.25s cubic-bezier(.16,1,.3,1), background 0.2s',
+                boxShadow: `0 0 6px ${activeTab === 'notes' ? '#58A6FF88' : '#BC8CFF88'}`,
+              }} />
+            )}
           </div>
         )}
 
-        {activeTab === 'notes' && notes && (
-          <div key="notes" className="animate-fadeIn" style={s.notesBlock}>
-            {renderNotes(notes)}
-          </div>
-        )}
-        {activeTab === 'quiz' && quiz?.length > 0 && (
-          <div key="quiz" className="animate-slideUp"><QuizView questions={quiz} /></div>
+        {!notesLoading && !quizLoading && (
+          <ContentSlider
+            notes={notes}
+            quiz={quiz}
+            activeTab={activeTab}
+            quizVersion={quizVersion}
+          />
         )}
       </>
     </div>
@@ -482,15 +532,31 @@ function GlowButton({ label, icon, loading, disabled, color, onClick }) {
   )
 }
 
-function TabBtn({ active, onClick, children }) {
+function TabBtn({ active, onClick, tabRef, children }) {
+  function handleClick(e) {
+    const btn = e.currentTarget
+    const rect = btn.getBoundingClientRect()
+    const span = document.createElement('span')
+    span.className = 'ripple'
+    span.style.left = `${e.clientX - rect.left}px`
+    span.style.top  = `${e.clientY - rect.top}px`
+    btn.appendChild(span)
+    setTimeout(() => span.remove(), 600)
+    onClick()
+  }
   return (
     <button
-      onClick={onClick}
+      ref={tabRef}
+      onClick={handleClick}
+      className="tab-ripple-host"
       style={{
         ...s.tabBtn,
         color:           active ? 'var(--text-primary)' : 'var(--text-muted)',
-        borderBottom:    active ? '2px solid #58A6FF' : '2px solid transparent',
+        borderBottom:    '2px solid transparent',
         backgroundColor: active ? 'var(--bg-elevated)' : 'transparent',
+        fontWeight:      active ? 700 : 600,
+        transform:       active ? 'scale(1.04)' : 'scale(1)',
+        transition:      'color .2s, background-color .2s, transform .2s',
       }}
     >
       {children}
@@ -502,6 +568,116 @@ function ErrorBox({ msg }) {
   return (
     <div style={s.errorBox} className="animate-slideDown">
       <strong>Error:</strong> {msg}
+    </div>
+  )
+}
+
+function ContentSlider({ notes, quiz, activeTab, quizVersion }) {
+  const currentRef = useRef(activeTab)
+  const [exiting,  setExiting]  = useState(null)
+  const [animKey,  setAnimKey]  = useState(0)
+  const dirRef  = useRef('right')
+  const ORDER   = ['notes', 'quiz']
+  const DUR     = '0.36s'
+  const EASE    = 'cubic-bezier(0.4,0,0.2,1)'
+
+  useLayoutEffect(() => {
+    if (activeTab === currentRef.current) return
+    dirRef.current = ORDER.indexOf(activeTab) > ORDER.indexOf(currentRef.current) ? 'right' : 'left'
+    const leaving = currentRef.current
+    currentRef.current = activeTab
+    setExiting(leaving)
+    setAnimKey(k => k + 1)
+    const t = setTimeout(() => setExiting(null), 380)
+    return () => clearTimeout(t)
+  }, [activeTab])
+
+  function getContent(tab) {
+    if (tab === 'notes' && notes)       return <div style={s.notesBlock}>{renderNotes(notes)}</div>
+    if (tab === 'quiz'  && quiz?.length) return <QuizView key={quizVersion} questions={quiz} />
+    return null
+  }
+
+  const dir          = dirRef.current
+  const enterContent = getContent(activeTab)
+  const exitContent  = exiting ? getContent(exiting) : null
+  if (!enterContent && !exitContent) return null
+
+  return (
+    <div style={{ position: 'relative' }}>
+      {enterContent && (
+        <div key={animKey} style={{
+          animation: exiting
+            ? `${dir === 'right' ? 'tabEnterRight' : 'tabEnterLeft'} ${DUR} ${EASE} both`
+            : 'none',
+        }}>
+          {enterContent}
+        </div>
+      )}
+      {exitContent && (
+        <div key={`x-${exiting}`} style={{
+          position: 'absolute', inset: 0, overflow: 'hidden',
+          animation: `${dir === 'right' ? 'tabExitLeft' : 'tabExitRight'} ${DUR} ${EASE} both`,
+          pointerEvents: 'none',
+        }}>
+          {exitContent}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GeneratingSkeleton({ type, status, color }) {
+  const line = (w, h = 10, delay = 0) => ({
+    display: 'block',
+    width: typeof w === 'number' ? `${w}%` : w,
+    height: `${h}px`,
+    borderRadius: '5px',
+    background: 'linear-gradient(90deg, var(--bg-surface) 0%, var(--bg-elevated) 50%, var(--bg-surface) 100%)',
+    backgroundSize: '200% 100%',
+    animation: `shimmer 1.6s ease-in-out ${delay}ms infinite`,
+    flexShrink: 0,
+  })
+
+  return (
+    <div style={{ marginTop: '16px', animation: 'fadeIn 0.35s ease both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+        <span style={{
+          width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+          backgroundColor: color, animation: 'dotPulse 1.4s ease-in-out infinite',
+          boxShadow: `0 0 6px ${color}88`,
+        }} />
+        <span key={status} style={{
+          fontSize: '0.73rem', color, fontWeight: 500,
+          animation: 'statusFade 0.35s ease both',
+        }}>
+          {status}
+        </span>
+      </div>
+
+      {type === 'notes' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+          <span style={line(52, 13, 0)} />
+          {[88, 72, 95, 65, 80].map((w, i) => <span key={i} style={line(w, 10, i * 80)} />)}
+          <span style={{ ...line(42, 13, 400), marginTop: '10px' }} />
+          {[75, 90, 60, 82, 55].map((w, i) => <span key={i + 5} style={line(w, 10, (i + 5) * 80)} />)}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {[80, 75, 85, 70, 78].map((qw, qi) => (
+            <div key={qi} style={{
+              padding: '12px 14px', border: '1px solid var(--border)', borderRadius: '10px',
+              display: 'flex', flexDirection: 'column', gap: '7px',
+              animation: `slideUp 0.4s ease ${qi * 80}ms both`,
+            }}>
+              <span style={line(qw, 11, qi * 60)} />
+              {[62, 70, 58, 66].map((cw, ci) => (
+                <span key={ci} style={{ ...line(cw, 9, qi * 60 + ci * 40), marginLeft: '12px' }} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
